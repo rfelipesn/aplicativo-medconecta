@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "MEDconecta",
+    "slug": "medconecta",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "medconecta",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#1B5FA8"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "br.com.medconecta.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Usado para fotografar exames.",
+        "NSMicrophoneUsageDescription": "Usado para gravar relatos de sintomas e mensagens de áudio.",
+        "NSFaceIDUsageDescription": "Usado para login rápido e seguro por biometria."
+      }
+    },
+    "android": {
+      "package": "br.com.medconecta.app",
+      "permissions": ["CAMERA", "RECORD_AUDIO", "USE_BIOMETRIC", "USE_FINGERPRINT"]
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-local-authentication",
+      "expo-camera",
+      "expo-av"
+    ],
+    "extra": {
+      "supabaseUrl": "",
+      "supabaseAnonKey": "",
+      "apiUrl": "http://localhost:3333"
+    }
+  }
+}

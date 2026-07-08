@@ -1,0 +1,359 @@
+// MEDconecta - Prisma schema (acesso tipado pela API Fastify).
+//
+// IMPORTANTE: a FONTE AUTORITATIVA do schema + RLS é o SQL em `supabase/migrations`.
+// Este schema espelha as tabelas para dar tipagem ao backend. Após aplicar as
+// migrations no Supabase, rode `prisma db pull` para manter sincronizado, e
+// `prisma generate` para gerar o client.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  doctor
+  patient
+  assistant
+}
+
+enum PatientStatus {
+  active
+  inactive
+}
+
+enum DemandType {
+  recipe_renewal
+  appointment_request
+  exam_result
+  symptom_log
+  general_question
+  second_opinion
+}
+
+enum DemandPriority {
+  urgent
+  elective
+  informational
+  other
+}
+
+enum DemandStatus {
+  open
+  responded
+  closed
+  pending_action
+}
+
+enum SenderType {
+  patient
+  doctor
+  system
+}
+
+enum MessageType {
+  text
+  audio
+  image
+  document
+}
+
+enum HealthEventType {
+  headache
+  seizure
+  sleep
+  symptom
+  other
+}
+
+enum InputType {
+  text
+  audio
+}
+
+enum ExamType {
+  mri
+  ct
+  eeg
+  xray
+  blood
+  other
+}
+
+enum RecipeStatus {
+  pending
+  responded
+  expired
+}
+
+enum DocumentType {
+  recipe
+  exam_result
+  prescription
+  report
+  other
+}
+
+enum ConsentType {
+  data_processing
+  sensitive_health_data
+  terms
+  privacy_policy
+  elective_scope_acknowledgment
+}
+
+enum SyncStatus {
+  pending
+  synced
+}
+
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  phone           String    @unique
+  cpf             String    @unique
+  email           String?   @unique
+  fullName        String    @map("full_name")
+  dateOfBirth     DateTime? @map("date_of_birth") @db.Date
+  role            UserRole
+  profilePhotoUrl String?   @map("profile_photo_url")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  doctor     Doctor?
+  patient    Patient?
+  consents   Consent[]
+  auditLogs  AuditLog[]
+
+  @@map("users")
+}
+
+model Doctor {
+  id                      String  @id @default(uuid()) @db.Uuid
+  userId                  String  @unique @map("user_id") @db.Uuid
+  specialization          String
+  crmNumber               String  @map("crm_number")
+  bio                     String?
+  availabilityStartTime   String? @map("availability_start_time")
+  availabilityEndTime     String? @map("availability_end_time")
+  workingDays             Int[]   @map("working_days")
+  recipeSlaHours          Int     @default(72) @map("recipe_sla_hours")
+  secretaryWhatsappNumber String? @map("secretary_whatsapp_number")
+  videoCallEnabled        Boolean @default(false) @map("video_call_enabled")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id])
+  patients Patient[]
+
+  @@map("doctors")
+}
+
+model Patient {
+  id              String        @id @default(uuid()) @db.Uuid
+  userId          String        @unique @map("user_id") @db.Uuid
+  doctorId        String        @map("doctor_id") @db.Uuid
+  medicalHistory  String?       @map("medical_history")
+  allergies       String?
+  activeConditions Json         @default("[]") @map("active_conditions")
+  status          PatientStatus @default(active)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  user             User              @relation(fields: [userId], references: [id])
+  doctor           Doctor            @relation(fields: [doctorId], references: [id])
+  chatMessages     ChatMessage[]
+  healthEventLogs  HealthEventLog[]
+  headacheDiaries  HeadacheDiary[]
+  seizureDiaries   SeizureDiary[]
+  recipeRequests   RecipeRequest[]
+  examUploads      ExamUpload[]
+  documents        Document[]
+
+  @@index([doctorId])
+  @@map("patients")
+}
+
+model ChatMessage {
+  id                      String      @id @default(uuid()) @db.Uuid
+  patientId               String      @map("patient_id") @db.Uuid
+  doctorId                String      @map("doctor_id") @db.Uuid
+  senderType              SenderType  @map("sender_type")
+  messageType             MessageType @map("message_type")
+  contentText             String?     @map("content_text")
+  audioUrl                String?     @map("audio_url")
+  transcriptionText       String?     @map("transcription_text")
+  transcriptionConfidence Int?        @map("transcription_confidence")
+  isRead                  Boolean     @default(false) @map("is_read")
+  readAt                  DateTime?   @map("read_at")
+  syncStatus              SyncStatus  @default(pending) @map("sync_status")
+  createdAt               DateTime    @default(now()) @map("created_at")
+  updatedAt               DateTime    @updatedAt @map("updated_at")
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([patientId, createdAt])
+  @@map("chat_messages")
+}
+
+model HealthEventLog {
+  id                      String          @id @default(uuid()) @db.Uuid
+  patientId               String          @map("patient_id") @db.Uuid
+  eventType               HealthEventType @map("event_type")
+  inputType               InputType       @map("input_type")
+  descriptionText         String?         @map("description_text")
+  audioUrl                String?         @map("audio_url")
+  transcriptionText       String?         @map("transcription_text")
+  transcriptionConfidence Int?            @map("transcription_confidence")
+  eventDatetime           DateTime        @map("event_datetime")
+  syncStatus              SyncStatus      @default(pending) @map("sync_status")
+  createdAt               DateTime        @default(now()) @map("created_at")
+  updatedAt               DateTime        @updatedAt @map("updated_at")
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([patientId, eventDatetime])
+  @@map("health_event_logs")
+}
+
+model HeadacheDiary {
+  id              String     @id @default(uuid()) @db.Uuid
+  patientId       String     @map("patient_id") @db.Uuid
+  diaryDate       DateTime   @map("diary_date") @db.Date
+  startTime       String?    @map("start_time")
+  endTime         DateTime?  @map("end_time")
+  durationMinutes Int?       @map("duration_minutes")
+  intensity       Int?
+  types           Json       @default("[]")
+  location        Json       @default("{}")
+  symptoms        Json       @default("[]")
+  triggers        Json       @default("[]")
+  medicationsTaken Json      @default("[]") @map("medications_taken")
+  reliefMethods   Json       @default("[]") @map("relief_methods")
+  impactOnActivities Json    @default("[]") @map("impact_on_activities")
+  notes           String?
+  syncStatus      SyncStatus @default(pending) @map("sync_status")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([patientId, diaryDate])
+  @@map("headache_diary")
+}
+
+model SeizureDiary {
+  id                       String     @id @default(uuid()) @db.Uuid
+  patientId                String     @map("patient_id") @db.Uuid
+  seizureDate              DateTime   @map("seizure_date") @db.Date
+  seizureTime              String?    @map("seizure_time")
+  lossOfConsciousness      Boolean    @map("loss_of_consciousness")
+  hospitalVisit            Boolean    @map("hospital_visit")
+  hospitalName             String?    @map("hospital_name")
+  durationMinutes          Int        @map("duration_minutes")
+  medicationTakenCorrectly Boolean    @map("medication_taken_correctly")
+  medicationBrandChanged   Boolean    @map("medication_brand_changed")
+  newMedicationBrand       String?    @map("new_medication_brand")
+  additionalNotes          String?    @map("additional_notes")
+  syncStatus               SyncStatus @default(pending) @map("sync_status")
+  createdAt                DateTime   @default(now()) @map("created_at")
+  updatedAt                DateTime   @updatedAt @map("updated_at")
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([patientId, seizureDate])
+  @@map("seizure_diary")
+}
+
+model RecipeRequest {
+  id                 String       @id @default(uuid()) @db.Uuid
+  patientId          String       @map("patient_id") @db.Uuid
+  doctorId           String       @map("doctor_id") @db.Uuid
+  medicationNames    Json         @default("[]") @map("medication_names")
+  quantityDays       Int?         @map("quantity_days")
+  reason             String?
+  status             RecipeStatus @default(pending)
+  responseDate       DateTime?    @map("response_date")
+  slaDeadline        DateTime     @map("sla_deadline")
+  responseDocumentId String?      @map("response_document_id") @db.Uuid
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([doctorId, status])
+  @@map("recipe_requests")
+}
+
+model ExamUpload {
+  id           String     @id @default(uuid()) @db.Uuid
+  patientId    String     @map("patient_id") @db.Uuid
+  doctorId     String     @map("doctor_id") @db.Uuid
+  examType     ExamType   @map("exam_type")
+  examDate     DateTime?  @map("exam_date") @db.Date
+  fileUrl      String     @map("file_url")
+  fileMimeType String     @map("file_mime_type")
+  fileSize     Int        @map("file_size")
+  userNotes    String?    @map("user_notes")
+  syncStatus   SyncStatus @default(pending) @map("sync_status")
+  uploadedAt   DateTime   @default(now()) @map("uploaded_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([patientId])
+  @@map("exam_uploads")
+}
+
+model Document {
+  id              String       @id @default(uuid()) @db.Uuid
+  patientId       String       @map("patient_id") @db.Uuid
+  doctorId        String       @map("doctor_id") @db.Uuid
+  documentType    DocumentType @map("document_type")
+  fileUrl         String       @map("file_url")
+  fileName        String       @map("file_name")
+  fileSize        Int          @map("file_size")
+  mimeType        String       @map("mime_type")
+  uploadedByDoctor Boolean     @default(false) @map("uploaded_by_doctor")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  createdBy       String?      @map("created_by") @db.Uuid
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([patientId])
+  @@map("documents")
+}
+
+model Consent {
+  id          String      @id @default(uuid()) @db.Uuid
+  userId      String      @map("user_id") @db.Uuid
+  consentType ConsentType @map("consent_type")
+  version     String
+  accepted    Boolean
+  acceptedAt  DateTime    @map("accepted_at")
+  ipAddress   String?     @map("ip_address")
+  revokedAt   DateTime?   @map("revoked_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, consentType])
+  @@map("consents")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String?  @map("user_id") @db.Uuid
+  resourceType String   @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  action       String
+  ipAddress    String?  @map("ip_address")
+  timestamp    DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}

@@ -1,0 +1,88 @@
+:root {
+  --color-primary: #1b5fa8;
+  --color-bg: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-text: #333333;
+  --color-muted: #6b7b8d;
+  --color-urgent: #e67e22;
+  --color-elective: #f1c40f;
+  --color-informational: #1b5fa8;
+  --color-other: #cccccc;
+  --radius: 12px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.app-header {
+  background: var(--color-primary);
+  color: #fff;
+  padding: 16px 24px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-weight: 500;
+}
+
+.app-header .subtitle {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.app-main {
+  padding: 24px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px;
+}
+
+.muted {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.priority-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.priority {
+  padding: 8px 16px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 13px;
+}
+
+.priority--urgent {
+  background: var(--color-urgent);
+}
+.priority--elective {
+  background: var(--color-elective);
+  color: #333;
+}
+.priority--informational {
+  background: var(--color-informational);
+}
+.priority--other {
+  background: var(--color-other);
+  color: #333;
+}
