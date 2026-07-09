@@ -18,11 +18,15 @@ enum UserRole {
   doctor
   patient
   assistant
+
+  @@map("user_role")
 }
 
 enum PatientStatus {
   active
   inactive
+
+  @@map("patient_status")
 }
 
 enum DemandType {
@@ -32,6 +36,8 @@ enum DemandType {
   symptom_log
   general_question
   second_opinion
+
+  @@map("demand_type")
 }
 
 enum DemandPriority {
@@ -39,6 +45,8 @@ enum DemandPriority {
   elective
   informational
   other
+
+  @@map("demand_priority")
 }
 
 enum DemandStatus {
@@ -46,12 +54,16 @@ enum DemandStatus {
   responded
   closed
   pending_action
+
+  @@map("demand_status")
 }
 
 enum SenderType {
   patient
   doctor
   system
+
+  @@map("sender_type")
 }
 
 enum MessageType {
@@ -59,6 +71,8 @@ enum MessageType {
   audio
   image
   document
+
+  @@map("message_type")
 }
 
 enum HealthEventType {
@@ -67,11 +81,15 @@ enum HealthEventType {
   sleep
   symptom
   other
+
+  @@map("health_event_type")
 }
 
 enum InputType {
   text
   audio
+
+  @@map("input_type")
 }
 
 enum ExamType {
@@ -81,12 +99,16 @@ enum ExamType {
   xray
   blood
   other
+
+  @@map("exam_type")
 }
 
 enum RecipeStatus {
   pending
   responded
   expired
+
+  @@map("recipe_status")
 }
 
 enum DocumentType {
@@ -95,6 +117,8 @@ enum DocumentType {
   prescription
   report
   other
+
+  @@map("document_type")
 }
 
 enum ConsentType {
@@ -103,11 +127,15 @@ enum ConsentType {
   terms
   privacy_policy
   elective_scope_acknowledgment
+
+  @@map("consent_type")
 }
 
 enum SyncStatus {
   pending
   synced
+
+  @@map("sync_status")
 }
 
 model User {
@@ -122,11 +150,16 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   deletedAt       DateTime? @map("deleted_at")
+  mustChangePassword Boolean @default(false) @map("must_change_password")
 
-  doctor     Doctor?
-  patient    Patient?
-  consents   Consent[]
-  auditLogs  AuditLog[]
+  doctor            Doctor?
+  patient           Patient?
+  consents          Consent[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  pushTokens        PushToken[]
+  assistantRoles    DoctorAssistant[] @relation("AssistantUser")
+  assistantsCreated DoctorAssistant[] @relation("AssistantCreatedBy")
 
   @@map("users")
 }
@@ -146,8 +179,14 @@ model Doctor {
   createdAt               DateTime @default(now()) @map("created_at")
   updatedAt               DateTime @updatedAt @map("updated_at")
 
-  user     User      @relation(fields: [userId], references: [id])
-  patients Patient[]
+  user             User              @relation(fields: [userId], references: [id])
+  patients         Patient[]
+  doctorAssistants DoctorAssistant[]
+  demands          Demand[]
+  symptomTypes     SymptomType[]
+  triggerTypes     TriggerType[]
+  medicationTypes  MedicationType[]
+  reliefMethods    ReliefMethod[]
 
   @@map("doctors")
 }
@@ -172,6 +211,7 @@ model Patient {
   recipeRequests   RecipeRequest[]
   examUploads      ExamUpload[]
   documents        Document[]
+  demands          Demand[]
 
   @@index([doctorId])
   @@map("patients")
@@ -356,4 +396,124 @@ model AuditLog {
 
   @@index([resourceType, resourceId])
   @@map("audit_logs")
+}
+
+model DoctorAssistant {
+  id              String   @id @default(uuid()) @db.Uuid
+  doctorId        String   @map("doctor_id") @db.Uuid
+  assistantUserId String   @map("assistant_user_id") @db.Uuid
+  permissions     Json     @default("{\"can_view\":true,\"can_respond\":false,\"can_approve_recipes\":false}")
+  createdAt       DateTime @default(now()) @map("created_at")
+  createdBy       String?  @map("created_by") @db.Uuid
+
+  doctor        Doctor @relation(fields: [doctorId], references: [id])
+  assistantUser User   @relation("AssistantUser", fields: [assistantUserId], references: [id])
+  creator       User?  @relation("AssistantCreatedBy", fields: [createdBy], references: [id])
+
+  @@index([doctorId])
+  @@map("doctor_assistants")
+}
+
+model Demand {
+  id                String          @id @default(uuid()) @db.Uuid
+  patientId         String          @map("patient_id") @db.Uuid
+  doctorId          String          @map("doctor_id") @db.Uuid
+  title             String?
+  description       String?
+  type              DemandType
+  priority          DemandPriority?
+  status            DemandStatus    @default(open)
+  aiConfidenceScore Int?            @map("ai_confidence_score")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  respondedAt       DateTime?       @map("responded_at")
+  closedAt          DateTime?       @map("closed_at")
+
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  doctor        Doctor         @relation(fields: [doctorId], references: [id])
+  notifications Notification[]
+
+  @@index([doctorId, priority, status])
+  @@map("demands")
+}
+
+model Notification {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  type            String
+  title           String
+  body            String
+  relatedDemandId String?   @map("related_demand_id") @db.Uuid
+  channelsSent    Json      @default("[]") @map("channels_sent")
+  readAt          DateTime? @map("read_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  user          User    @relation(fields: [userId], references: [id])
+  relatedDemand Demand? @relation(fields: [relatedDemandId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model PushToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String
+  deviceId  String   @map("device_id")
+  platform  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@index([userId])
+  @@map("push_tokens")
+}
+
+model SymptomType {
+  id          String  @id @default(uuid()) @db.Uuid
+  doctorId    String  @map("doctor_id") @db.Uuid
+  symptomName String  @map("symptom_name")
+  icon        String?
+  isCommon    Boolean @default(false) @map("is_common")
+
+  doctor Doctor @relation(fields: [doctorId], references: [id])
+
+  @@map("symptom_types")
+}
+
+model TriggerType {
+  id          String  @id @default(uuid()) @db.Uuid
+  doctorId    String  @map("doctor_id") @db.Uuid
+  triggerName String  @map("trigger_name")
+  category    String?
+  isCommon    Boolean @default(false) @map("is_common")
+
+  doctor Doctor @relation(fields: [doctorId], references: [id])
+
+  @@map("trigger_types")
+}
+
+model MedicationType {
+  id                  String  @id @default(uuid()) @db.Uuid
+  doctorId            String  @map("doctor_id") @db.Uuid
+  medicationName      String  @map("medication_name")
+  isPrescribed        Boolean @default(false) @map("is_prescribed")
+  effectivenessRating Int?    @map("effectiveness_rating")
+
+  doctor Doctor @relation(fields: [doctorId], references: [id])
+
+  @@map("medication_types")
+}
+
+model ReliefMethod {
+  id         String  @id @default(uuid()) @db.Uuid
+  doctorId   String  @map("doctor_id") @db.Uuid
+  methodName String  @map("method_name")
+  icon       String?
+  isCommon   Boolean @default(false) @map("is_common")
+
+  doctor Doctor @relation(fields: [doctorId], references: [id])
+
+  @@map("relief_methods")
 }

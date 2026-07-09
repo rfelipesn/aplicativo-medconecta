@@ -1,0 +1,5 @@
+# Auth states e artefatos de teste
+.auth/
+playwright-report/
+test-results/
+.playwright/

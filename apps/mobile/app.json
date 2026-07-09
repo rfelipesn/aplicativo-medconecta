@@ -21,18 +21,31 @@
     },
     "android": {
       "package": "br.com.medconecta.app",
-      "permissions": ["CAMERA", "RECORD_AUDIO", "USE_BIOMETRIC", "USE_FINGERPRINT"]
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM"
+      ]
     },
     "plugins": [
       "expo-secure-store",
       "expo-local-authentication",
       "expo-camera",
-      "expo-av"
+      "expo-av",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1B5FA8"
+        }
+      ]
     ],
     "extra": {
-      "supabaseUrl": "",
-      "supabaseAnonKey": "",
-      "apiUrl": "http://localhost:3333"
+      "supabaseUrl": "https://jrhsugwodskbmoztqvds.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpyaHN1Z3dvZHNrYm1venRxdmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MzY5NTIsImV4cCI6MjA5NzMxMjk1Mn0.5eefkQ279akjsnv9vpZyPUPZmiNvbdSwZaaS7g-gvfE"
     }
   }
 }

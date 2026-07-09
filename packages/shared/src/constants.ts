@@ -30,6 +30,29 @@ export type DemandPriority = (typeof DEMAND_PRIORITIES)[number];
 export const DEMAND_STATUS = ['open', 'responded', 'closed', 'pending_action'] as const;
 export type DemandStatus = (typeof DEMAND_STATUS)[number];
 
+export const DEMAND_TYPE_LABELS: Record<DemandType, string> = {
+  recipe_renewal: 'Renovação de receita',
+  appointment_request: 'Agendamento',
+  exam_result: 'Resultado de exame',
+  symptom_log: 'Registro de sintoma',
+  general_question: 'Pergunta geral',
+  second_opinion: 'Segunda opinião',
+};
+
+export const DEMAND_PRIORITY_LABELS: Record<DemandPriority, string> = {
+  urgent: 'Urgente',
+  elective: 'Eletiva',
+  informational: 'Informativa',
+  other: 'Outro',
+};
+
+export const DEMAND_STATUS_LABELS: Record<DemandStatus, string> = {
+  open: 'Aberta',
+  responded: 'Respondida',
+  pending_action: 'Aguardando ação',
+  closed: 'Fechada',
+};
+
 export const HEALTH_EVENT_TYPES = [
   'headache',
   'seizure',

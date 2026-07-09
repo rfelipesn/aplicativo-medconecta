@@ -39,3 +39,13 @@ export const sendMessageInputSchema = z
     { message: 'Mensagem de texto exige contentText; áudio exige localAudioPath.' },
   );
 export type SendMessageInput = z.infer<typeof sendMessageInputSchema>;
+
+/**
+ * Envio de mensagem aceito pela API (MVP: somente texto).
+ * Áudio + transcrição entram na Fase 2 (Whisper).
+ */
+export const postChatMessageInputSchema = z.object({
+  messageType: z.literal('text').default('text'),
+  contentText: z.string().min(1, 'Mensagem vazia.').max(4000),
+});
+export type PostChatMessageInput = z.infer<typeof postChatMessageInputSchema>;

@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Backend API",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:api"],
+      "port": 3333,
+      "autoPort": false
+    },
+    {
+      "name": "Web (Médico)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:web"],
+      "port": 5173,
+      "autoPort": false
+    },
+    {
+      "name": "Mobile (Paciente)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "@medconecta/mobile", "--", "--clear", "--port", "8082", "--localhost"],
+      "port": 8082,
+      "autoPort": true
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+node_modules
+dist
+build
+.expo
+.env
+.env.local
+**/node_modules
+**/dist
+**/build
+**/.expo
+**/coverage
+**/.turbo
+**/test-results
+**/playwright-report
+.git
+.github
+graphify-out

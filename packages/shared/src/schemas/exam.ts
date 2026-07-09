@@ -31,3 +31,22 @@ export const createExamUploadInputSchema = z.object({
   localFilePath: z.string(),
 });
 export type CreateExamUploadInput = z.infer<typeof createExamUploadInputSchema>;
+
+/** Requisição de URL assinada para upload (enviada pelo front antes do PUT no Storage). */
+export const signUploadInputSchema = z.object({
+  examType: z.enum(EXAM_TYPES),
+  filename: z.string().min(1).max(200),
+  mimeType: z.enum(ACCEPTED_EXAM_MIME_TYPES),
+});
+export type SignUploadInput = z.infer<typeof signUploadInputSchema>;
+
+/** Registro do exame no banco APÓS o upload bem-sucedido no Storage. */
+export const registerExamInputSchema = z.object({
+  storagePath: z.string().min(1),
+  examType: z.enum(EXAM_TYPES),
+  examDate: isoDateSchema.optional(),
+  fileMimeType: z.enum(ACCEPTED_EXAM_MIME_TYPES),
+  fileSize: z.number().int().positive(),
+  userNotes: z.string().max(1000).optional(),
+});
+export type RegisterExamInput = z.infer<typeof registerExamInputSchema>;

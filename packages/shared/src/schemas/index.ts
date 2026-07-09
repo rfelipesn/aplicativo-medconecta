@@ -5,4 +5,8 @@ export * from './healthEvent.js';
 export * from './diaries.js';
 export * from './recipe.js';
 export * from './exam.js';
+export * from './documents.js';
 export * from './consent.js';
+export * from './demands.js';
+export * from './assistant.js';
+export * from './pushTokens.js';

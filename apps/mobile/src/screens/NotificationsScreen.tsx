@@ -1,0 +1,139 @@
+import {
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiGet, apiPatch, apiPost } from '../lib/api';
+import type { AppNotification, NotificationsResponse } from '../types';
+import { T } from '../theme/tokens';
+
+const C = {
+  primary: T.color.primary,
+  onPrimary: T.color.onPrimary,
+  bg: T.color.bg,
+  surface: T.color.surface,
+  text: T.color.text,
+  muted: T.color.textSecondary,
+  unreadBg: T.color.primarySoft,
+};
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function NotifItem({ item, onRead }: { item: AppNotification; onRead: (id: string) => void }) {
+  return (
+    <TouchableOpacity
+      style={[styles.item, !item.readAt && styles.itemUnread]}
+      onPress={() => { if (!item.readAt) onRead(item.id); }}
+      activeOpacity={0.7}
+    >
+      <View style={styles.itemContent}>
+        <Text style={styles.itemTitle}>{item.title}</Text>
+        <Text style={styles.itemBody}>{item.body}</Text>
+        <Text style={styles.itemDate}>{formatDate(item.createdAt)}</Text>
+      </View>
+      {!item.readAt && <View style={styles.dot} />}
+    </TouchableOpacity>
+  );
+}
+
+export function NotificationsScreen() {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => apiGet<NotificationsResponse>('/notifications'),
+    refetchInterval: 30_000,
+  });
+
+  const markOne = useMutation({
+    mutationFn: (id: string) => apiPatch(`/notifications/${id}/read`, {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
+  const markAll = useMutation({
+    mutationFn: () => apiPost('/notifications/read-all', {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
+  const notifications = query.data?.notifications ?? [];
+  const unread = query.data?.unreadCount ?? 0;
+
+  return (
+    <View style={styles.root}>
+      {unread > 0 && (
+        <TouchableOpacity
+          style={styles.readAllBtn}
+          onPress={() => markAll.mutate()}
+          disabled={markAll.isPending}
+        >
+          <Text style={styles.readAllText}>
+            {markAll.isPending ? 'Marcando…' : `Marcar todas lidas (${unread})`}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {query.isLoading && <ActivityIndicator color={C.primary} style={{ margin: 16 }} />}
+
+      <FlatList
+        data={notifications}
+        keyExtractor={(n) => n.id}
+        contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          !query.isLoading ? (
+            <Text style={styles.muted}>Sem notificações.</Text>
+          ) : null
+        }
+        renderItem={({ item }) => (
+          <NotifItem item={item} onRead={(id) => markOne.mutate(id)} />
+        )}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg },
+  readAllBtn: {
+    backgroundColor: C.primary,
+    margin: 16,
+    borderRadius: T.radius.pill,
+    paddingVertical: 14,
+    alignItems: 'center',
+    ...T.shadow.soft,
+  },
+  readAllText: { color: C.onPrimary, fontWeight: '700' },
+  list: { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 4 },
+  item: {
+    backgroundColor: C.surface,
+    borderRadius: T.radius.lg,
+    padding: T.space.md,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    ...T.shadow.soft,
+  },
+  itemUnread: { backgroundColor: C.unreadBg },
+  itemContent: { flex: 1 },
+  itemTitle: { fontSize: 14, fontWeight: '700', color: C.text, marginBottom: 2 },
+  itemBody: { fontSize: 13, color: C.text, marginBottom: 4 },
+  itemDate: { fontSize: 11, color: C.muted },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: C.primary,
+    marginLeft: 8,
+  },
+  muted: { color: C.muted, textAlign: 'center', marginTop: 16 },
+});
