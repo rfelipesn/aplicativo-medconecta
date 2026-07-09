@@ -19,9 +19,11 @@ ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 RUN npm run build -w @medconecta/shared
 RUN npm run build -w @medconecta/web
 
-# ---- Production stage (nginx hardcoded port 8080) ----
+# ---- Production ----
 FROM nginx:alpine
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 COPY apps/web/default.conf /etc/nginx/conf.d/default.conf
+COPY apps/web/start.sh /start.sh
+RUN chmod +x /start.sh
 EXPOSE 8080
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/start.sh"]

@@ -1,4 +1,4 @@
-# ---- Build stage (Expo/Metro export web) ----
+# ---- Build stage ----
 FROM node:20 AS build
 WORKDIR /app
 ENV EXPO_NO_TELEMETRY=1
@@ -14,9 +14,11 @@ RUN npm run build -w @medconecta/shared
 
 RUN cd apps/mobile && npx expo export --platform web --output-dir dist
 
-# ---- Production stage (nginx hardcoded port 8080) ----
+# ---- Production ----
 FROM nginx:alpine
 COPY --from=build /app/apps/mobile/dist /usr/share/nginx/html
 COPY apps/mobile/default.conf /etc/nginx/conf.d/default.conf
+COPY apps/mobile/start.sh /start.sh
+RUN chmod +x /start.sh
 EXPOSE 8080
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/start.sh"]
