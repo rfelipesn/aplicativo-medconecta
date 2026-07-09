@@ -1,0 +1,12 @@
+[build]
+  command = "npm install && npm run build -w @medconecta/shared && npm run build -w @medconecta/web"
+  publish = "apps/web/dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NODE_ENV = "production"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

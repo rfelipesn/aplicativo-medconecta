@@ -1,0 +1,13 @@
+[build]
+  command = "npm install && npm run build -w @medconecta/shared && cd apps/mobile && npx expo export --platform web --output-dir dist"
+  publish = "apps/mobile/dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  EXPO_NO_TELEMETRY = "1"
+  CI = "1"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
