@@ -39,6 +39,8 @@ export async function buildServer() {
         : [
             'https://medconecta-web.netlify.app',
             'https://medconecta-mobile.netlify.app',
+            'http://173.212.230.29',
+            'https://173.212.230.29',
           ],
     credentials: true,
   });
