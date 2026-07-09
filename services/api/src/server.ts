@@ -33,7 +33,13 @@ export async function buildServer() {
   });
 
   await app.register(cors, {
-    origin: env.NODE_ENV === 'development' ? true : [],
+    origin:
+      env.NODE_ENV === 'development'
+        ? true
+        : [
+            'https://medconecta-web.netlify.app',
+            'https://medconecta-mobile.netlify.app',
+          ],
     credentials: true,
   });
 
