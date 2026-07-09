@@ -13,16 +13,15 @@ RUN npm install --include=dev --no-audit
 # Compila packages/shared antes do expo export (Metro precisa de dist/index.js)
 RUN npm run build -w @medconecta/shared
 
-# Exporta o app para web estático. URL da API e chaves do Supabase estão em
-# apps/mobile/app.json (extra.apiUrl / supabaseUrl / supabaseAnonKey).
+# Exporta o app para web estático
 RUN cd apps/mobile && npx expo export --platform web --output-dir dist
 
-# ---- Production stage (nginx, escuta em $PORT via template) ----
+# ---- Production stage (nginx) ----
 FROM nginx:alpine
 ENV PORT=8080
-ENV NGINX_ENVSUBST_FILTER=PORT
 COPY --from=build /app/apps/mobile/dist /usr/share/nginx/html
 COPY apps/mobile/default.conf.template /etc/nginx/templates/default.conf.template
+COPY apps/mobile/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 EXPOSE 8080
-# Sem CMD/startCommand custom: usa o entrypoint oficial que roda o envsubst
-# (substitui ${PORT} no template) e sobe o nginx.
+ENTRYPOINT ["/docker-entrypoint.sh"]

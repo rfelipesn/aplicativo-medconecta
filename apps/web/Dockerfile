@@ -19,12 +19,12 @@ ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 RUN npm run build -w @medconecta/shared
 RUN npm run build -w @medconecta/web
 
-# ---- Production stage (nginx, escuta em $PORT via template) ----
+# ---- Production stage (nginx) ----
 FROM nginx:alpine
 ENV PORT=8080
-ENV NGINX_ENVSUBST_FILTER=PORT
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 COPY apps/web/default.conf.template /etc/nginx/templates/default.conf.template
+COPY apps/web/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 EXPOSE 8080
-# Sem CMD/startCommand custom: usa o entrypoint oficial que roda o envsubst
-# (substitui ${PORT} no template) e sobe o nginx.
+ENTRYPOINT ["/docker-entrypoint.sh"]
