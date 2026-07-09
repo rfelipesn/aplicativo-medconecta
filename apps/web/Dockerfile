@@ -19,12 +19,9 @@ ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 RUN npm run build -w @medconecta/shared
 RUN npm run build -w @medconecta/web
 
-# ---- Production stage (nginx) ----
+# ---- Production stage (nginx hardcoded port 8080) ----
 FROM nginx:alpine
-ENV PORT=8080
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
-COPY apps/web/default.conf.template /etc/nginx/templates/default.conf.template
-COPY apps/web/docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+COPY apps/web/default.conf /etc/nginx/conf.d/default.conf
 EXPOSE 8080
-ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]
