@@ -17,12 +17,16 @@ const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
  * ambiente `EXPO_PUBLIC_API_URL` (recomendado para emulador: `EXPO_PUBLIC_API_URL=http://10.0.2.2:3333` no Android).
  */
 function detectDevApiUrl(): string {
-  if (extra.apiUrl) return extra.apiUrl;
+  // Metro substitui `process.env.EXPO_PUBLIC_API_URL` literalmente durante o build.
+  // Guardamos numa const para que a expressão fique como literal-truthy no bundle final
+  // (o optional-chaining `?.` do padrão anterior impedia a substituição no check).
   // @ts-expect-error: process.env é resolvido pelo Metro bundler
-  if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) {
-    // @ts-expect-error
-    return process.env.EXPO_PUBLIC_API_URL as string;
-  }
+  const envUrl = process.env.EXPO_PUBLIC_API_URL as string | undefined;
+  if (envUrl) return envUrl;
+
+  // Em nativo (Expo Go / standalone) o extra.apiUrl do app.json ainda funciona.
+  if (extra.apiUrl) return extra.apiUrl;
+
   if (Platform.OS === 'web') {
     return 'http://localhost:3333';
   }
