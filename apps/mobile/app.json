@@ -43,6 +43,10 @@
         }
       ]
     ],
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
     "extra": {
       "supabaseUrl": "https://jrhsugwodskbmoztqvds.supabase.co",
       "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpyaHN1Z3dvZHNrYm1venRxdmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MzY5NTIsImV4cCI6MjA5NzMxMjk1Mn0.5eefkQ279akjsnv9vpZyPUPZmiNvbdSwZaaS7g-gvfE",

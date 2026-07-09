@@ -1,10 +1,12 @@
-# ---- Build stage ----
-FROM node:20-alpine AS build
+# ---- Build stage (Debian p/ evitar problemas de binários nativos no Alpine) ----
+FROM node:20 AS build
 WORKDIR /app
 
-# Contexto = raiz do repo (monorepo). Copia tudo (o .dockerignore exclui
-# node_modules/dist/.env), instala o workspace e compila shared + web.
-COPY . .
+# Copia só o necessário para o web: manifestos, o pacote shared e o app web.
+# Assim o npm NÃO instala apps/mobile (deps nativas) nem services/api.
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/shared ./packages/shared
+COPY apps/web ./apps/web
 RUN npm install --include=dev --no-audit
 
 # Vite injeta as VITE_* no bundle em BUILD TIME — vêm como build args do Railway.
