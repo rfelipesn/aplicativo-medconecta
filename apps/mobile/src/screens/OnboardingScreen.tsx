@@ -14,9 +14,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiChangePassword, apiGet, apiPost, ApiError } from '../lib/api';
+import { apiCompleteOnboarding, apiGet, apiPost, ApiError } from '../lib/api';
 import { authenticateWithBiometrics, isBiometricAvailable } from '../lib/biometrics';
+import { secureSet } from '../lib/secureStorage';
 import type { MeResponse } from '../types';
+
+/** Chave do PIN/senha de desbloqueio LOCAL do app (nunca vai para o servidor). */
+const LOCAL_UNLOCK_KEY = 'local_unlock_secret';
 
 const C = {
   primary: '#85B7BF',
@@ -60,12 +64,6 @@ export function OnboardingScreen() {
     staleTime: 0,
     refetchInterval: 1000,
   });
-
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7273/ingest/359a14c5-d90b-477e-becc-c780dfc72bc1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'603b9b'},body:JSON.stringify({sessionId:'603b9b',location:'OnboardingScreen.tsx:55',message:'meAfterChange state',data:{completed,status:meAfterChange.status,isError:meAfterChange.isError,mustChangePassword:meAfterChange.data?.user?.mustChangePassword},timestamp:Date.now(),runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-  }, [completed, meAfterChange.status, meAfterChange.isError, meAfterChange.data]);
-  // #endregion
 
   // Lock de rebobinamento: depois que o usuário passa da welcome/scope/terms
   // não permitimos voltar via re-render acidental (ex.: refetch que desmonta).
@@ -143,21 +141,17 @@ export function OnboardingScreen() {
       return;
     }
 
-    // 1) Troca a senha. apiChangePassword já injeta a NOVA sessão (devolvida
-    //    pelo backend) no Supabase, evitando 401 no /me logo em seguida.
+    // 1) Guarda o PIN/senha de desbloqueio LOCALMENTE (nunca vai ao servidor) e
+    //    marca o onboarding como concluído. A credencial de login continua sendo
+    //    CPF + data de nascimento, então a sessão atual segue válida.
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7273/ingest/359a14c5-d90b-477e-becc-c780dfc72bc1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'603b9b'},body:JSON.stringify({sessionId:'603b9b',location:'OnboardingScreen.tsx:142',message:'calling apiChangePassword',data:{usePin},timestamp:Date.now(),runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
-      await apiChangePassword(p);
-      // #region agent log
-      fetch('http://127.0.0.1:7273/ingest/359a14c5-d90b-477e-becc-c780dfc72bc1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'603b9b'},body:JSON.stringify({sessionId:'603b9b',location:'OnboardingScreen.tsx:143',message:'apiChangePassword OK',data:{},timestamp:Date.now(),runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
+      await secureSet(LOCAL_UNLOCK_KEY, p);
+      await apiCompleteOnboarding();
     } catch (err) {
       const message =
         err instanceof ApiError && err.status < 500
-          ? 'Não foi possível salvar a nova senha. Tente novamente.'
-          : 'Falha de conexão ao salvar a senha. Verifique sua internet e tente novamente.';
+          ? 'Não foi possível concluir seu cadastro. Tente novamente.'
+          : 'Falha de conexão ao concluir o cadastro. Verifique sua internet e tente novamente.';
       Alert.alert('Erro', message);
       return;
     }
@@ -180,9 +174,6 @@ export function OnboardingScreen() {
 
     // 3) Sinaliza conclusão. A partir daqui o meAfterChange é habilitado
     //    e o RootNavigator troca para App assim que /me confirmar.
-    // #region agent log
-    fetch('http://127.0.0.1:7273/ingest/359a14c5-d90b-477e-becc-c780dfc72bc1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'603b9b'},body:JSON.stringify({sessionId:'603b9b',location:'OnboardingScreen.tsx:170',message:'setCompleted(true)',data:{},timestamp:Date.now(),runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
     setCompleted(true);
     // Garante que o cache antigo (com mustChangePassword=true) não seja
     // usado por nenhuma tela antes da revalidação.

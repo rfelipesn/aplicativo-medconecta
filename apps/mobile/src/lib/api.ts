@@ -76,27 +76,16 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   });
 }
 
-export type ChangePasswordResponse = {
+export type CompleteOnboardingResponse = {
   ok: true;
   mustChangePassword: false;
-  session: { access_token: string; refresh_token: string };
 };
 
 /**
- * Troca a senha obrigatória do paciente e injeta imediatamente a nova sessão
- * devolvida pelo backend no Supabase, evitando que o access_token antigo
- * (invalidado pela alteração de senha) cause 401/loop no refetch de /me.
+ * Conclui o onboarding do paciente. NÃO troca a senha do servidor — a
+ * credencial continua sendo CPF + data de nascimento. A sessão atual segue
+ * válida (nada é invalidado), então basta marcar o onboarding como concluído.
  */
-export async function apiChangePassword(newPassword: string): Promise<void> {
-  const result = await apiPost<ChangePasswordResponse>('/me/change-password', { newPassword });
-  if (result?.session?.access_token) {
-    const { error } = await supabase.auth.setSession({
-      access_token: result.session.access_token,
-      refresh_token: result.session.refresh_token,
-    });
-    if (error) {
-      // Última tentativa: força refresh com o refresh_token novo.
-      await supabase.auth.refreshSession();
-    }
-  }
+export async function apiCompleteOnboarding(): Promise<void> {
+  await apiPost<CompleteOnboardingResponse>('/me/complete-onboarding', {});
 }

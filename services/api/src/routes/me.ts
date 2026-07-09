@@ -68,7 +68,36 @@ export async function registerMeRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  // ─── Troca de senha obrigatória no 1º acesso do paciente ────────────────────
+  // ─── Conclusão do onboarding do paciente (1º acesso) ────────────────────────
+  // IMPORTANTE: a credencial do paciente é SEMPRE CPF + data de nascimento.
+  // O onboarding NÃO troca a senha do Supabase Auth — apenas marca que o
+  // paciente já passou pelas telas de consentimento. O PIN/biometria é um
+  // desbloqueio LOCAL do aparelho, guardado no próprio dispositivo, e nunca
+  // vira a senha da conta (senão o paciente ficaria trancado, pois a tela de
+  // login só usa CPF + data de nascimento).
+  app.post('/me/complete-onboarding', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.authUser!.id;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return reply.code(404).send({ error: 'profile_not_found' });
+    if (user.role !== 'patient') {
+      return reply.code(403).send({ error: 'forbidden', message: 'Onboarding apenas para pacientes.' });
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { mustChangePassword: false },
+    });
+
+    const ip = (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? request.ip;
+    await auditLog({ userId, resourceType: 'user', action: 'complete_onboarding', ipAddress: ip });
+
+    return reply.send({ ok: true, mustChangePassword: false });
+  });
+
+  // ─── (LEGADO) Troca de senha — mantido por compatibilidade, NÃO usado pelo app.
+  //     Trocar a senha aqui invalida o login por CPF + data de nascimento, então
+  //     o fluxo de onboarding usa /me/complete-onboarding acima. ─────────────────
   app.post('/me/change-password', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.authUser!.id;
     const parsed = changePasswordInputSchema.safeParse(request.body);

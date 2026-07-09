@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LoginScreen } from '../screens/LoginScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
@@ -35,28 +34,15 @@ export function RootNavigator() {
     staleTime: 30_000,
   });
 
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7273/ingest/359a14c5-d90b-477e-becc-c780dfc72bc1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'603b9b'},body:JSON.stringify({sessionId:'603b9b',location:'RootNavigator.tsx:36',message:'meQuery state',data:{hasSession:!!session,status:meQuery.status,isError:meQuery.isError,hasData:!!meQuery.data,mustChangePassword:meQuery.data?.user?.mustChangePassword},timestamp:Date.now(),runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
-  }, [session, meQuery.status, meQuery.isError, meQuery.data]);
-  // #endregion
-
   // Pronto quando: sem sessão (Login) ou temos dados /me ou erro.
   const ready = !session || !!meQuery.data || meQuery.isError;
 
   if (sessionLoading || !ready) {
-    // #region agent log
-    fetch('http://127.0.0.1:7273/ingest/359a14c5-d90b-477e-becc-c780dfc72bc1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'603b9b'},body:JSON.stringify({sessionId:'603b9b',location:'RootNavigator.tsx:43',message:'rendering Loading',data:{sessionLoading,ready,hasSession:!!session},timestamp:Date.now(),runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
     return <Loading />;
   }
 
   const user = meQuery.data?.user;
   const requiresOnboarding = user?.role === 'patient' && user?.mustChangePassword === true;
-
-  // #region agent log
-  fetch('http://127.0.0.1:7273/ingest/359a14c5-d90b-477e-becc-c780dfc72bc1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'603b9b'},body:JSON.stringify({sessionId:'603b9b',location:'RootNavigator.tsx:48',message:'route decision',data:{hasUser:!!user,role:user?.role,mustChangePassword:user?.mustChangePassword,requiresOnboarding},timestamp:Date.now(),runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
-  // #endregion
 
   let route: keyof RootStackParamList;
   if (!session) {
@@ -66,10 +52,6 @@ export function RootNavigator() {
   } else {
     route = 'App';
   }
-
-  // #region agent log
-  fetch('http://127.0.0.1:7273/ingest/359a14c5-d90b-477e-becc-c780dfc72bc1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'603b9b'},body:JSON.stringify({sessionId:'603b9b',location:'RootNavigator.tsx:62',message:'chosen route',data:{route},timestamp:Date.now(),runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
-  // #endregion
 
   return (
     <Stack.Navigator
