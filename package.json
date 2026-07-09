@@ -13,7 +13,7 @@
     "dev:api": "npm run dev -w @medconecta/api",
     "dev:web": "npm run dev -w @medconecta/web",
     "build": "turbo run build",
-    "build:api": "npm run build -w @medconecta/api",
+    "build:api": "npm run build -w @medconecta/shared && npm run build -w @medconecta/api",
     "start": "npm run start -w @medconecta/api",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
