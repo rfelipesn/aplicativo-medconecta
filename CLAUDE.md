@@ -54,10 +54,15 @@ automação de deploy (`/land-and-deploy` incluso), reconcilie o workflow com a 
 roadmap em `PLANO_MEDCONECTA.md`. A VPS também tem alterações não commitadas e está num commit
 anterior ao local, então um `git pull` direto pode conflitar.
 
-### Alvos de deploy abandonados (não usar)
+### Alvos de deploy abandonados
 
-`railway.json` e `vercel.json` continuam no repo mas não representam a produção atual
-(`PLANO_MEDCONECTA.md`, seção 4.3). O destino oficial é a VPS.
+`railway.json` e `vercel.json` foram **removidos do repo em 2026-07-17 (commit `e24dad1`)**
+porque faziam Railway/Vercel tentarem buildar em todo push na `main`, gerando emails
+de "Build failed". O destino oficial é a VPS.
+
+**Atenção:** os serviços no painel do Railway/Vercel ainda podem existir. O usuário precisa
+deletar/desativar manualmente em https://railway.app/dashboard e https://vercel.com/dashboard
+para os emails pararem de vez.
 
 ### Verificado em 2026-07-17
 
@@ -65,4 +70,24 @@ anterior ao local, então um `git pull` direto pode conflitar.
 - `https://medconecta.173-212-230-29.sslip.io/api/health` → 200, API saudável.
 - Bundle web publicado aponta para `https://medconecta.173-212-230-29.sslip.io/api` — coerente, sem mixed content.
 - `http://173.212.230.29` e `http://173.212.230.29/api/health` → **404**. O IP puro não serve mais; o Nginx passou a responder pelo hostname sslip.io. Corrigir essa afirmação em `PLANO_MEDCONECTA.md`.
+
+### Gotchas técnicos do projeto (NÃO regredir)
+
+1. **Upload Supabase Storage — URL absoluta obrigatória.**
+   O Supabase retorna `{ url: "/object/upload/sign/<bucket>/<path>?token=<jwt>" }` com `url` RELATIVO ao `/storage/v1/`.
+   `services/api/src/lib/storage.ts → createSignedUploadUrl` DEVE juntar com `env.SUPABASE_URL + '/storage/v1'`
+   antes de devolver ao front. Se devolver URL relativa, o browser resolve contra o domínio atual (VPS) e
+   bate no Nginx → 405. Toda nova rota de upload deve passar pela função utilitária
+   `apps/web/src/lib/upload.ts → uploadFileViaSignedUrl` (valida `signedUrl.startsWith('https://')`).
+
+2. **`notifications.related_demand_id` é polimórfico — SEM FK.**
+   Em 2026-07-17 (migration `0005_notifications_remove_related_fk.sql`, aplicada no Supabase),
+   a FK para `demands(id)` foi removida. O campo guarda UUID de Recipe, Document, Patient ou Demand
+   dependendo do `type`. Schema Prisma: a relation foi removida do `Notification` e do `Demand`.
+   Não reintroduzir FK nem relation Prisma.
+
+3. **VPS deploy é MANUAL via SSH.** Não existe CLI nem comando versionado. O usuário roda
+   `git pull` + `npm run build` + `nginx -s reload` + `pm2 restart medconecta-api` dentro da VPS.
+   O `deploy.sh` na VPS é não-versionado. Para deployar do Cursor, usar PuTTY (`plink`/`pscp`) com
+   a senha informada pelo usuário na sessão.
 

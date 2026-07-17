@@ -1,6 +1,8 @@
 # MEDconecta — handoff atual para Claude Code
 
-Atualizado em 2026-07-17 (fim da sessão de design + funcfix + bugfixes). Estado: trabalho em andamento na branch `main`, **não comitado**, **já deployado na VPS**.
+Atualizado em 2026-07-17 (fim da sessão de design + funcfix + bugfixes + ciclos pós-deploy).
+
+Estado atual: **branch `main`, todos os commits já foram pushados para o GitHub e deployados na VPS**. Sem mudanças locais pendentes.
 
 ## Objetivo do produto
 
@@ -37,23 +39,32 @@ Fluent Accent — aplicado em **todas as telas mobile e painel web**, já deploy
 - Documento `DESIGN.md` com o design system completo.
 - Nginx configurado com `Cache-Control: no-cache` no HTML para forçar refresh de assets com hash.
 
-## Estado atual do worktree (snapshot 2026-07-17 16:23)
+## Estado atual do worktree (snapshot 2026-07-17 18:50)
 
 - Branch: `main`
-- HEAD: `a3ac9b3 Fix: EXPO_PUBLIC_API_URL ignorado no web bundle`
-- **57 arquivos modificados, ~2140 inserções, ~953 remoções** (rastreados)
-- Arquivos não rastreados: `.vscode/`, `CLAUDE.md`, `CONTEXTO_ATUAL.md`, `DESIGN.md`, `PLANO_MEDCONECTA.md`, `apps/mobile/src/components/` (FluentIcon, FluentScreen), `apps/mobile/src/watermelon/adapter.d.ts`, `claude-handoff/`, `cursor-handoff/`, `novo 46.txt`, templates docker.
-- **Nada foi comitado.** Tudo está no working tree local + deployado na VPS.
+- HEAD: `e24dad1 Chore: remover alvos de deploy abandonados (railway.json, vercel.json)`
+- Working tree: **limpo, sem mudanças locais não comitadas**.
+- Tudo já comitado + pushado para `origin/main` + deployado na VPS.
 - Backups na VPS em `/opt/medconecta/.deploy-backups/` (design-*, funcfix-*, bugfix-*).
 
 Sempre confirme o estado real com:
 
 ```powershell
 git status --short
-git diff --stat
+git log --oneline -10
 ```
 
-## O que foi feito nesta sessão (3 ciclos)
+## Histórico de commits desta rodada (na ordem)
+
+1. `004a300` — Deploy: Fluent Accent + fixes funcionais + 6 tarefas
+2. `a3ac9b3` — Fix: EXPO_PUBLIC_API_URL ignorado no web bundle
+3. `81e4652` — Add VPS IP 173.212.230.29 to CORS allowed origins
+4. `c823f47` — **Fix: upload 405 — signedUrl era relativa, browser fazia PUT no Nginx**
+5. `224a08c` — **Web: modal de receita, deep-link de notificações e card colapsável**
+6. `de9799d` — **Fix: notifications.related_demand_id FK removida (campo polimórfico)**
+7. `e24dad1` — **Chore: remover alvos de deploy abandonados (railway.json, vercel.json)**
+
+## O que foi feito nesta sessão (7 ciclos)
 
 ### Ciclo 1 — Design Fluent Accent (deployado)
 
@@ -80,7 +91,77 @@ git diff --stat
 | b1 | Upload doc: erro `expiresIn` | `createSignedUploadUrl` envia `{ expiresIn: 3600 }` | `services/api/src/lib/storage.ts` |
 | b2 | HealthEvents: campo "Quando" horrível | Botões Hoje/Ontem/Escolher data | `apps/web/src/pages/HealthEventPanel.tsx` |
 | b3 | Responder demanda de receita sem anexo | Campo de anexo PDF/PNG quando `recipe_renewal` | `apps/web/src/pages/DemandsPanel.tsx` |
-| b4 | Médico via formulário "Solicitar receita" | Prop `role: 'patient'|'doctor'`; formulário só para paciente | `apps/web/src/pages/RecipesPanel.tsx`, `Dashboard.tsx` |
+| b4 | Médico via formulário "Solicitar receita" | Prop `role: 'patient'\|'doctor'`; formulário só para paciente | `apps/web/src/pages/RecipesPanel.tsx`, `Dashboard.tsx` |
+| b5 | Exames não atualizavam no painel | `refetchInterval: 30s` + `refetchOnWindowFocus` | `apps/web/src/pages/ExamsPanel.tsx` |
+| b6 | Minhas Demandas: tipos irrelevantes + chips feios | Removidos `general_question`/`second_opinion`; chips com `IconSquircle` | `apps/mobile/src/screens/DemandsScreen.tsx` |
+| b7 | Push deep-link sempre ia pra home | Mapeamento `type → tab` (chat/receitas/notificações) | `apps/mobile/src/hooks/usePushNotifications.ts` |
+
+### Ciclo 4 — Fix do 405 no upload (commit `c823f47`)
+
+**Causa raiz:** O backend retornava `signedUrl` como **URL relativa** (`/object/upload/sign/<bucket>/<path>?token=<jwt>`). O Supabase Storage responde o endpoint `POST /storage/v1/object/upload/sign/...` com `{ url, token }`, onde `url` é relativo. O navegador resolvia contra a origem atual `medconecta.173-212-230-29.sslip.io`, virando `PUT https://medconecta.173-212-230-29.sslip.io/object/upload/sign/...`. O Nginx só tem proxy para `/api/` → **405 Method Not Allowed**.
+
+**Correção:**
+
+- `services/api/src/lib/storage.ts`: `createSignedUploadUrl` agora compõe a URL absoluta juntando `env.SUPABASE_URL + '/storage/v1' + url_relativo`.
+- `apps/web/src/lib/upload.ts` **(NOVO)**: função utilitária única `uploadFileViaSignedUrl` que valida se a URL começa com `https://`, faz PUT direto no Storage, com `x-upsert: false` e mensagens de erro em PT-BR.
+- 3 painéis atualizados para usar a função utilitária: `DocumentsPanel.tsx`, `ExamsPanel.tsx`, `DemandsPanel.tsx`.
+
+**Validação:** PUT direto no Supabase com URL absoluta + Origin do browser = HTTP 200. CORS preflight OK. Deploy OK.
+
+### Ciclo 5 — UX do painel médico (commit `224a08c`)
+
+**R1 — Receitas pendentes (médico):**
+
+- Antes: "Marcar como respondida" direto, sem ver nem anexar nada.
+- Agora: botão **"Abrir e enviar receita"** abre modal com dados completos (medicamentos, motivo, quantidade, prazo) + campo para anexar PDF/JPG/PNG. Fluxo: upload do PDF → registra como documento `recipe` → marca receita como respondida.
+- Mantido botão secundário "Marcar sem anexo" (com confirmação) para casos sem PDF.
+- CSS novo em `index.css`: `.modal-overlay`, `.modal-card`, `.recipe-detail-row`.
+
+**R2 — Notificação clicável no painel:**
+
+- Antes: clicava na notificação e nada acontecia.
+- Agora: cada item do dropdown é um botão clicável. Mapeamento `type → destino`:
+  - `new_recipe_request` / `recipe_response` → rola até `#receitas-pendentes`
+  - `new_demand` / `demand_response` / `appointment_confirmed` → rola até `#demandas`
+  - `new_document` → seleciona paciente da demanda + rola até `#documentos`
+  - `new_chat_message` → seleciona paciente + rola até `#conversa`
+  - padrão → `#demandas`
+- Notificação marcada como lida automaticamente.
+- `AppNotification` estendido com `relatedDemandId` (já existia no backend).
+- Painéis do Dashboard ganharam `id` âncora (`#demandas`, `#conversa`, `#receitas-pendentes`, `#solicitacoes-exame`, `#documentos`).
+
+**R3 — Card "Cadastrar paciente" colapsável:**
+
+- Default **fechado**. Clicando no header expande/recolhe com seta (▾/▴).
+- CSS: `.collapsible-card`, `.collapsible-header`, `.collapsible-toggle`, `.collapsible-content`.
+
+### Ciclo 6 — Fix FK notifications (commit `de9799d`)
+
+**Erro do usuário:** ao responder receita no modal, Prisma disparava:
+`Invalid prisma.notification.create() invocation: Foreign key constraint violated: notifications_related_demand_id_fkey`
+
+**Causa raiz:** a coluna `notifications.related_demand_id` tinha FK direto para `demands(id)` (definida em `supabase/migrations/0001_initial_schema.sql:272`). Mas o campo era usado como referência **polimórfica**:
+
+- `recipes.ts:90,200` → `relatedDemandId: recipe.id` (RecipeRequest, não Demand)
+- `documents.ts:140` → `relatedDemandId: document.id` (Document, não Demand)
+- `chat.ts:187,285` → `relatedDemandId: access.patientId` (Patient, não Demand)
+- `demands.ts:135,401,585` → `relatedDemandId: demand.id` (único caso legítimo)
+
+**Correção:**
+
+- **Migration nova** `supabase/migrations/0005_notifications_remove_related_fk.sql`: `ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_related_demand_id_fkey`. **Aplicada manualmente no Supabase.**
+- **Schema Prisma** (`packages/db/prisma/schema.prisma`): removida a relation `relatedDemand` no `Notification` e `notifications Notification[]` no `Demand` (eram type-suggestions que sugeriam FK, mas ela já não existe no banco). Adicionado comentário explicando uso polimórfico.
+- Coluna UUID mantida no banco (sem rename — todo o código continua usando `relatedDemandId`).
+
+### Ciclo 7 — Limpeza de alvos de deploy abandonados (commit `e24dad1`)
+
+**Problema:** o usuário recebia emails "Build failed" do Railway (`marvelous-charisma` / `@medconecta/mobile`) e do Vercel (`aplicativo-medconecta-api`). Ambos eram alvos abandonados (VPS é o destino oficial desde 2026-07-17), mas os arquivos de config continuavam no repo.
+
+**Correção:**
+
+- Removido `railway.json` (fazia Railway tentar buildar o mobile/Expo em todo push → falhava → email).
+- Removido `vercel.json` (idem).
+- **Para parar os emails de verdade**, o usuário precisa desativar/deletar os projetos no painel do Railway e Vercel — sem isso, o GitHub continua webhookando.
 | b5 | Exames não atualizavam no painel | `refetchInterval: 30s` + `refetchOnWindowFocus` | `apps/web/src/pages/ExamsPanel.tsx` |
 | b6 | Minhas Demandas: tipos irrelevantes + chips feios | Removidos `general_question`/`second_opinion`; chips com `IconSquircle` | `apps/mobile/src/screens/DemandsScreen.tsx` |
 | b7 | Push deep-link sempre ia pra home | Mapeamento `type → tab` (chat/receitas/notificações) | `apps/mobile/src/hooks/usePushNotifications.ts` |
@@ -166,14 +247,18 @@ O workspace mobile não tem script `build` padrão — use `npx expo export --pl
 
 ## Próxima ação recomendada
 
-O usuário está testando os bugfixes do ciclo 3. Possíveis próximos passos dependem do retorno dele:
+O usuário pediu para **salvar o contexto agora** para abrir no Claude Desktop. Estado estável: working tree limpo, tudo commitado na `main`, tudo deployado na VPS.
 
-1. **Corrigir bugs adicionais** que o usuário encontrar ao testar o ciclo 3.
-2. **Implementar gaps restantes** (#4 upload mobile, #6 áudio, #7 badge, #8 cron SLA).
-3. **Commitar o trabalho** quando o usuário confirmar que está estável (ele ainda não pediu commit).
-4. **Reconciliar workflow GitHub** com a VPS real (item 3 do roadmap em `PLANO_MEDCONECTA.md`).
+Possíveis próximos passos quando retomar:
 
-Não assumir que o usuário quer commit/push. Ele pediu apenas para "salvar o contexto no Cursor" — este documento é o checkpoint.
+1. **Continuar bugfixes** que o usuário encontrar ao testar a UX nova (modal de receita, deep-link, card colapsável).
+2. **Implementar gaps restantes** (#4 upload mobile, #6 áudio, #7 badge, #8 cron SLA — ver tabela "Gaps conhecidos" abaixo).
+3. **Desativar projeto Railway/Vercel** no painel para parar os emails de "build failed".
+4. **Reconciliar workflow GitHub Actions** `.github/workflows/deploy.yml` com a VPS real (divergente — usa Docker inativo). Remover o workflow é a forma mais simples.
+5. **Trocar senha da VPS e configurar chave SSH** (ainda usando senha compartilhada, risco de segurança).
+6. **Adicionar EAS Build** para gerar binários nativos do mobile (`@medconecta/mobile`) — Railway/Vercel não dão conta; EAS é o caminho oficial do Expo.
+
+Não assumir que o usuário quer commit/push/deploy/migration. Ele pediu apenas para "salvar o contexto no Cursor e no Claude" — este documento é o checkpoint.
 
 ## Notas importantes para retomada
 
