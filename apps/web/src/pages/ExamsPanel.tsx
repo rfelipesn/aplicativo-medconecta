@@ -30,6 +30,7 @@ export function ExamsPanel({ patientId, patientName }: ExamsPanelProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [examType, setExamType] = useState('other');
   const [examDate, setExamDate] = useState('');
+  const [expectedDate, setExpectedDate] = useState('');
   const [notes, setNotes] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [formErr, setFormErr] = useState<string | null>(null);
@@ -38,6 +39,8 @@ export function ExamsPanel({ patientId, patientName }: ExamsPanelProps) {
   const examsQuery = useQuery({
     queryKey: ['exams', patientId],
     queryFn: () => apiGet<ExamsResponse>(`/patients/${patientId}/exams`),
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 
   const upload = useMutation({
@@ -95,7 +98,7 @@ export function ExamsPanel({ patientId, patientName }: ExamsPanelProps) {
   return (
     <section className="card">
       <h2>
-        Exames — {patientName}
+        Solicitações de Exame — {patientName}
         {examsQuery.data && <span className="badge">{examsQuery.data.exams.length}</span>}
       </h2>
 
@@ -117,6 +120,10 @@ export function ExamsPanel({ patientId, patientName }: ExamsPanelProps) {
             Data do exame (opcional)
             <input type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} />
           </label>
+          <label>
+            Data prevista (opcional)
+            <input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} />
+          </label>
         </div>
         <label>
           Arquivo (PDF, JPG, PNG)
@@ -134,12 +141,12 @@ export function ExamsPanel({ patientId, patientName }: ExamsPanelProps) {
         </label>
         {formErr && <div className="auth-error">{formErr}</div>}
         <button className="btn-primary" type="submit" disabled={upload.isPending || !file}>
-          {upload.isPending ? 'Enviando…' : 'Enviar exame'}
+          {upload.isPending ? 'Enviando…' : 'Enviar solicitação'}
         </button>
       </form>
 
       {examsQuery.isLoading && <p className="muted">Carregando…</p>}
-      {examsQuery.data?.exams.length === 0 && <p className="muted">Nenhum exame enviado ainda.</p>}
+      {examsQuery.data?.exams.length === 0 && <p className="muted">Nenhuma solicitação de exame enviada ainda.</p>}
 
       <ul className="patient-list">
         {examsQuery.data?.exams.map((e) => (

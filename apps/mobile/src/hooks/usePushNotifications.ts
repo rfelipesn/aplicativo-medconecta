@@ -25,6 +25,41 @@ interface UsePushNotificationsResult {
 }
 
 /**
+ * Mapeia o `type` da notificação (vindo do backend) para a rota destino no app.
+ * Retorna a rota com parâmetros quando aplicável (deep-link completo).
+ *
+ * Tipos conhecidos (services/api/src/lib/notifications.ts + rotas):
+ *  - new_demand, demand_response → Demands (com demandId) ou Notificações
+ *  - new_chat_message → Chat
+ *  - new_recipe_request, recipe_response → Receitas
+ *  - new_document → Documents
+ *  - appointment_confirmed → Notificações
+ */
+function mapNotifToRoute(data: {
+  type?: string;
+  relatedDemandId?: string;
+}): { screen: 'Tabs'; params: { screen: string; params?: object } } | { screen: 'Demands'; params: { demandId?: string } } | { screen: 'Documents' } {
+  switch (data?.type) {
+    case 'new_chat_message':
+      return { screen: 'Tabs', params: { screen: 'Chat' } };
+    case 'new_recipe_request':
+    case 'recipe_response':
+      return { screen: 'Tabs', params: { screen: 'Receitas' } };
+    case 'new_demand':
+    case 'demand_response':
+      return data.relatedDemandId
+        ? { screen: 'Demands', params: { demandId: data.relatedDemandId } }
+        : { screen: 'Tabs', params: { screen: 'Notificações' } };
+    case 'new_document':
+      return { screen: 'Documents' };
+    case 'appointment_confirmed':
+      return { screen: 'Tabs', params: { screen: 'Notificações' } };
+    default:
+      return { screen: 'Tabs', params: { screen: 'Notificações' } };
+  }
+}
+
+/**
  * Hook de ciclo de vida do push:
  * 1. Pede permissão quando há sessão.
  * 2. Obtém o token Expo e registra no backend (idempotente).
@@ -106,11 +141,12 @@ export function usePushNotifications(
         const data = response.notification.request.content.data as
           | { type?: string; relatedDemandId?: string }
           | undefined;
-        if (!navRef || !data?.type) return;
+        if (!navRef) return;
         try {
-          // Navega para a tela de Notificações (raiz do bottom tabs).
-          // A partir dela o usuário abre a demanda se houver relatedDemandId.
-          navRef.navigate('App' as never);
+          const route = mapNotifToRoute(data ?? {});
+          // Navegação aninhada: 'App' envolve as bottom tabs e as telas de detalhe.
+          // @ts-expect-error — navegação aninhada App > (Tabs | Demands | Documents)
+          navRef.navigate('App', route);
         } catch {
           /* rota não disponível: silencioso */
         }

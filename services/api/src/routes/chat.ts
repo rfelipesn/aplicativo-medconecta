@@ -3,6 +3,7 @@ import { postChatMessageInputSchema } from '@medconecta/shared';
 import { prisma, Prisma } from '@medconecta/db';
 import { authenticate, resolveChatAccess } from '../middleware/auth.js';
 import { logAssistantAction } from '../lib/audit.js';
+import { createNotification } from '../lib/notifications.js';
 
 function getIp(request: import('fastify').FastifyRequest): string | null {
   return (
@@ -147,6 +148,51 @@ export async function registerChatRoutes(app: FastifyInstance) {
       }
 
       await prisma.$transaction(txOps);
+
+      // Notificar a outra parte sobre novas mensagens criadas via sync (mobile).
+      // Agrupa em uma única notificação para não spamar.
+      const createdRows = (chatChanges.created ?? []) as Record<string, unknown>[];
+      if (createdRows.length > 0) {
+        try {
+          const patientRow = await prisma.patient.findUnique({
+            where: { id: access.patientId },
+            select: {
+              userId: true,
+              user: { select: { fullName: true } },
+              doctor: { select: { userId: true } },
+            },
+          });
+          if (patientRow) {
+            const senderName =
+              access.role === 'patient'
+                ? patientRow.user?.fullName ?? 'Paciente'
+                : 'Médico';
+            const recipientUserId =
+              access.role === 'patient'
+                ? patientRow.doctor?.userId
+                : patientRow.userId;
+            if (recipientUserId) {
+              const firstText = String(
+                createdRows[0]?.content_text ?? '',
+              ).slice(0, 100);
+              const body =
+                createdRows.length === 1
+                  ? firstText || 'Você recebeu uma nova mensagem.'
+                  : `${createdRows.length} novas mensagens`;
+              await createNotification({
+                userId: recipientUserId,
+                type: 'new_chat_message',
+                title: `Nova mensagem de ${senderName}`,
+                body,
+                relatedDemandId: access.patientId,
+              });
+            }
+          }
+        } catch (err) {
+          app.log.warn({ err }, 'chat sync notification failed (non-blocking)');
+        }
+      }
+
       return { ok: true };
     },
   );
@@ -204,6 +250,45 @@ export async function registerChatRoutes(app: FastifyInstance) {
           syncStatus: 'synced',
         },
       });
+
+      // Notificar a outra parte (in-app + push).
+      // - Paciente envia  → médico recebe notificação "Nova mensagem".
+      // - Médico envia    → paciente recebe notificação "Nova mensagem".
+      // Não notifica a si mesmo; o polling da tela aberta cuida do refresh.
+      try {
+        const patientRow = await prisma.patient.findUnique({
+          where: { id: access.patientId },
+          select: {
+            userId: true,
+            user: { select: { fullName: true } },
+            doctor: { select: { userId: true } },
+          },
+        });
+        if (patientRow) {
+          const senderName =
+            access.role === 'patient'
+              ? patientRow.user?.fullName ?? 'Paciente'
+              : 'Médico';
+          const recipientUserId =
+            access.role === 'patient'
+              ? patientRow.doctor?.userId
+              : patientRow.userId;
+          if (recipientUserId) {
+            const preview =
+              (parsed.data.contentText ?? '').slice(0, 120) +
+              (parsed.data.contentText.length > 120 ? '…' : '');
+            await createNotification({
+              userId: recipientUserId,
+              type: 'new_chat_message',
+              title: `Nova mensagem de ${senderName}`,
+              body: preview || 'Você recebeu uma nova mensagem.',
+              relatedDemandId: access.patientId,
+            });
+          }
+        }
+      } catch (err) {
+        app.log.warn({ err }, 'chat message notification failed (non-blocking)');
+      }
 
       if (access.role === 'assistant') {
         await logAssistantAction({

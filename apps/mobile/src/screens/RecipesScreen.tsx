@@ -17,21 +17,22 @@ import type { MeResponse, RecipeRequest, RecipesResponse } from '../types';
 import { BUSINESS_RULES } from '@medconecta/shared';
 
 import { T } from '../theme/tokens';
+import { FluentIcon, IconSquircle } from '../components/FluentIcon';
 
 const C = {
-  primary: T.color.primary,
+  primary: T.color.primaryStrong,
   onPrimary: T.color.onPrimary,
   bg: T.color.bg,
   surface: T.color.surface,
   text: T.color.text,
   muted: T.color.textSecondary,
   border: T.color.separator,
-  pending: '#856404',
-  pendingBg: '#FEF3CD',
-  responded: '#1E8449',
-  respondedBg: '#D5F5E3',
-  expired: '#7F8C8D',
-  expiredBg: '#F2F3F4',
+  pending: '#9A6118',
+  pendingBg: T.color.orangeSoft,
+  responded: '#167D55',
+  respondedBg: T.color.greenSoft,
+  expired: T.color.textSecondary,
+  expiredBg: T.color.surfaceMuted,
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -60,9 +61,10 @@ function RecipeCard({ item }: { item: RecipeRequest }) {
   return (
     <View style={styles.recipeCard}>
       <View style={styles.recipeHeader}>
-        <Text style={styles.recipeTitle}>
-          {item.medicationNames.length ? item.medicationNames.join(', ') : 'Sem medicamentos'}
-        </Text>
+        <View style={styles.recipeIdentity}>
+          <IconSquircle name="pill" color={T.color.purple} backgroundColor={T.color.purpleSoft} size={40} />
+          <Text style={styles.recipeTitle}>{item.medicationNames.length ? item.medicationNames.join(', ') : 'Sem medicamentos'}</Text>
+        </View>
         <View style={[styles.tag, { backgroundColor: bg }]}>
           <Text style={[styles.tagText, { color }]}>{STATUS_LABEL[item.status]}</Text>
         </View>
@@ -91,6 +93,9 @@ export function RecipesScreen() {
     queryKey: ['recipes', patientId],
     queryFn: () => apiGet<RecipesResponse>(`/patients/${patientId}/recipes`),
     enabled: !!patientId,
+    // Resposta do médico (SLA) precisa aparecer sem fechar/reabrir a tela.
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 
   const request = useMutation({
@@ -129,9 +134,10 @@ export function RecipesScreen() {
               style={styles.newBtn}
               onPress={() => setShowForm((v) => !v)}
             >
-              <Text style={styles.newBtnText}>
-                {showForm ? 'Cancelar' : '+ Nova solicitação'}
-              </Text>
+              <View style={styles.newBtnContent}>
+                <FluentIcon name={showForm ? 'close' : 'plus'} size={18} color={T.color.white} />
+                <Text style={styles.newBtnText}>{showForm ? 'Cancelar' : 'Nova solicitação'}</Text>
+              </View>
             </TouchableOpacity>
 
             {showForm && (
@@ -158,7 +164,7 @@ export function RecipesScreen() {
                   disabled={request.isPending || !medications.trim()}
                 >
                   {request.isPending ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={C.onPrimary} />
                   ) : (
                     <Text style={styles.submitBtnText}>Solicitar receita</Text>
                   )}
@@ -186,51 +192,50 @@ export function RecipesScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  list: { padding: 16, gap: 12, paddingBottom: 32 },
+  list: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 16, gap: 12, paddingBottom: 32 },
   newBtn: {
     backgroundColor: C.primary,
-    borderRadius: 10,
+    borderRadius: T.radius.md,
     padding: 14,
     alignItems: 'center',
     marginBottom: 16,
   },
+  newBtnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   newBtnText: { color: C.onPrimary, fontWeight: '700', fontSize: 15 },
   form: {
-    backgroundColor: C.surface,
-    borderRadius: 16,
+    backgroundColor: T.color.acrylicStrong,
+    borderRadius: T.radius.lg,
     padding: 16,
     marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1,
+    borderColor: T.color.border,
+    ...T.shadow.card,
   },
   label: { fontSize: 13, color: C.muted, marginBottom: 6 },
   input: {
     borderWidth: 1,
     borderColor: C.border,
-    borderRadius: 10,
+    borderRadius: T.radius.md,
     padding: 12,
     fontSize: 14,
     color: C.text,
     marginBottom: 14,
+    backgroundColor: T.color.surfaceSubtle,
   },
-  submitBtn: { backgroundColor: C.primary, borderRadius: 10, padding: 14, alignItems: 'center' },
+  submitBtn: { backgroundColor: C.primary, borderRadius: T.radius.md, padding: 14, alignItems: 'center' },
   submitBtnText: { color: C.onPrimary, fontWeight: '700' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: C.text, marginBottom: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: C.text, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: T.color.primary, paddingLeft: 8 },
   recipeCard: {
-    backgroundColor: C.surface,
-    borderRadius: 14,
+    backgroundColor: T.color.acrylicStrong,
+    borderRadius: T.radius.lg,
     padding: 16,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
+    borderWidth: 1,
+    borderColor: T.color.border,
+    ...T.shadow.soft,
   },
   recipeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
-  recipeTitle: { fontSize: 14, fontWeight: '600', color: C.text, flex: 1, marginRight: 8 },
+  recipeIdentity: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, marginRight: 8 },
+  recipeTitle: { fontSize: 14, fontWeight: '700', color: C.text, flex: 1 },
   tag: { borderRadius: 99, paddingHorizontal: 10, paddingVertical: 3 },
   tagText: { fontSize: 12, fontWeight: '600' },
   recipeMeta: { fontSize: 13, color: C.muted, marginTop: 2 },

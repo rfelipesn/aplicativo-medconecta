@@ -6,21 +6,23 @@ import { apiGet } from '../lib/api';
 import type { MeResponse } from '../types';
 import type { MainStackParamList } from '../navigation/types';
 import type { SeizureEntry, SeizureEntriesResponse } from './seizureTypes';
+import { T } from '../theme/tokens';
+import { FluentIcon } from '../components/FluentIcon';
 
 const C = {
-  primary: '#85B7BF',
-  onPrimary: '#0F3B41',
-  bg: '#F5F7FA',
-  surface: '#FFFFFF',
-  text: '#333333',
-  muted: '#6B7B8D',
-  border: '#DDE3EA',
-  leve: '#27AE60',
-  leveBg: '#E6F7ED',
-  moderada: '#E67E22',
-  moderadaBg: '#FFF4E6',
-  severa: '#C0392B',
-  severaBg: '#FDECEA',
+  primary: T.color.primaryStrong,
+  onPrimary: T.color.onPrimary,
+  bg: T.color.bg,
+  surface: T.color.surface,
+  text: T.color.text,
+  muted: T.color.textSecondary,
+  border: T.color.separator,
+  leve: T.color.green,
+  leveBg: T.color.greenSoft,
+  moderada: T.color.orange,
+  moderadaBg: T.color.orangeSoft,
+  severa: T.color.red,
+  severaBg: T.color.redSoft,
 };
 
 type Nav = NativeStackNavigationProp<MainStackParamList>;
@@ -131,12 +133,14 @@ export function SeizureDashboardScreen() {
           style={styles.primaryBtn}
           onPress={() => navigation.navigate('RegisterSeizure')}
         >
+          <FluentIcon name="pulse" size={19} color={C.onPrimary} />
           <Text style={styles.primaryBtnText}>+ Nova crise</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.secondaryBtn}
           onPress={() => navigation.navigate('SeizureReports')}
         >
+          <FluentIcon name="chart-box-outline" size={19} color={C.primary} />
           <Text style={styles.secondaryBtnText}>Relatórios</Text>
         </TouchableOpacity>
       </View>
@@ -168,46 +172,54 @@ export function SeizureDashboardScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  headerRow: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: C.text },
+  headerRow: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 4 },
+  headerTitle: { fontSize: 28, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
   actionsRow: {
     flexDirection: 'row',
     gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
   },
   primaryBtn: {
     flex: 1,
     backgroundColor: C.primary,
-    borderRadius: 10,
+    borderRadius: T.radius.lg,
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    ...T.shadow.soft,
   },
   primaryBtnText: { color: C.onPrimary, fontWeight: '700', fontSize: 15 },
   secondaryBtn: {
     flex: 1,
     backgroundColor: C.surface,
-    borderRadius: 10,
+    borderRadius: T.radius.lg,
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
     borderWidth: 1,
     borderColor: C.primary,
   },
   secondaryBtnText: { color: C.primary, fontWeight: '600', fontSize: 15 },
   loader: { marginVertical: 16 },
   errorText: { color: C.severa, textAlign: 'center', marginTop: 16, paddingHorizontal: 16 },
-  list: { paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
+  list: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
   emptyContainer: { flex: 1, justifyContent: 'center', padding: 24 },
   emptyText: { color: C.muted, textAlign: 'center', fontSize: 14 },
   card: {
     backgroundColor: C.surface,
-    borderRadius: 14,
+    borderRadius: T.radius.xl,
     padding: 16,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
+    borderWidth: 1,
+    borderColor: T.color.border,
+    ...T.shadow.soft,
   },
   cardHeader: {
     flexDirection: 'row',

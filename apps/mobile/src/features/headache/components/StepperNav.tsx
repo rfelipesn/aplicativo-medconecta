@@ -1,6 +1,21 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { HT } from '../theme';
 import { WIZARD_STEPS } from '../steps/config';
+import { FluentIcon, type FluentIconName } from '../../../components/FluentIcon';
+
+const STEP_ICONS: Record<string, FluentIconName> = {
+  date: 'calendar-month-outline',
+  duration: 'clock-outline',
+  intensity: 'chart-bar',
+  type: 'lightning-bolt-outline',
+  location: 'account-outline',
+  symptoms: 'head-cog-outline',
+  triggers: 'target',
+  medications: 'pill',
+  relief: 'flower-outline',
+  disability: 'run',
+  notes: 'note-edit-outline',
+};
 
 interface Props {
   activeIndex: number;
@@ -25,7 +40,11 @@ export function StepperNav({ activeIndex, onSelect }: Props) {
               onPress={() => onSelect(index)}
               activeOpacity={0.7}
             >
-              <Text style={styles.icon}>{step.icon}</Text>
+              <FluentIcon
+                name={STEP_ICONS[step.key] ?? 'circle-outline'}
+                size={18}
+                color={active ? HT.onPrimary : HT.muted}
+              />
               <Text style={[styles.label, active && styles.labelActive]}>{step.label}</Text>
             </TouchableOpacity>
           );
@@ -37,17 +56,16 @@ export function StepperNav({ activeIndex, onSelect }: Props) {
 
 const styles = StyleSheet.create({
   wrap: { borderTopWidth: 1, borderTopColor: HT.border, backgroundColor: HT.wizardBg },
-  content: { paddingHorizontal: 12, paddingVertical: 8, gap: 4 },
+  content: { paddingHorizontal: 12, paddingVertical: 10, gap: 6 },
   tab: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 14,
+    borderRadius: 16,
     minWidth: 60,
   },
-  tabActive: { backgroundColor: HT.primarySoft },
-  icon: { fontSize: 18, marginBottom: 2 },
-  label: { fontSize: 11, color: HT.muted },
-  labelActive: { color: HT.primary, fontWeight: '600' },
+  tabActive: { backgroundColor: HT.primary, borderWidth: 1, borderColor: HT.primary },
+  label: { fontSize: 11, color: HT.muted, marginTop: 3 },
+  labelActive: { color: HT.onPrimary, fontWeight: '800' },
 });

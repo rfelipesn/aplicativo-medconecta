@@ -18,7 +18,7 @@ export function WizardFooter({ onSave, onNext, isLast, saving }: Props) {
           disabled={saving}
           activeOpacity={0.8}
         >
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.nextText}>Salvar</Text>}
+          {saving ? <ActivityIndicator color={HT.onPrimary} /> : <Text style={styles.nextText}>Salvar</Text>}
         </TouchableOpacity>
       </View>
     );
@@ -53,11 +53,13 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 20,
     backgroundColor: HT.wizardBg,
+    borderTopWidth: 1,
+    borderTopColor: HT.border,
   },
   save: {
     flex: 1,
     backgroundColor: HT.surfaceMuted,
-    borderRadius: 28,
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
   },
@@ -65,17 +67,17 @@ const styles = StyleSheet.create({
   next: {
     flex: 2,
     backgroundColor: HT.primary,
-    borderRadius: 28,
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
   },
   saveFull: {
     flex: 1,
     backgroundColor: HT.primary,
-    borderRadius: 28,
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  nextText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  nextText: { color: HT.onPrimary, fontSize: 16, fontWeight: '700' },
   disabled: { opacity: 0.6 },
 });

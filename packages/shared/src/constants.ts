@@ -98,6 +98,14 @@ export const NOTIFICATION_TYPES = [
   'demand_status_change',
   'recipe_ready',
   'system',
+  // Deep-link-aware types (usados no push data `type`):
+  'new_demand',
+  'demand_response',
+  'new_document',
+  'new_chat_message',
+  'new_recipe_request',
+  'recipe_response',
+  'appointment_confirmed',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

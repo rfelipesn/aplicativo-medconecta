@@ -4,12 +4,13 @@ import { WizardTitle } from '../components/WizardTitle';
 import { ActionPills } from '../components/ActionPills';
 import { SectionHeader } from '../components/SectionHeader';
 import { ListSelectItem } from '../components/ListSelectItem';
+import type { FluentIconName } from '../../../components/FluentIcon';
 import type { StepProps } from './common';
 
-const TYPE_ICONS: Record<string, string> = {
-  migraine: '🤕',
-  tension: '😣',
-  cluster: '😖',
+const TYPE_ICONS: Record<string, FluentIconName> = {
+  migraine: 'head-flash-outline',
+  tension: 'head-outline',
+  cluster: 'lightning-bolt-outline',
 };
 
 export function StepType({ draft, update }: StepProps) {

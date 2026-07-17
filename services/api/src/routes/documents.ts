@@ -11,12 +11,21 @@ import {
   deleteStorageObject,
 } from '../lib/storage.js';
 import { auditLog } from '../lib/audit.js';
+import { createNotification } from '../lib/notifications.js';
 
 // Bucket do Supabase Storage destinado aos documentos (receitas, prescrições,
-// laudos, resultados de exame em PDF). O bucket deve ser criado manualmente no
-// console do Supabase — o código funciona normalmente mesmo sem o bucket pré-existente
-// para a rota de sign-upload (o erro só aparece no PUT real no Storage).
+// laudos, resultados de exame em PDF). Bucket privado criado via migration
+// `0004_storage_documents_bucket.sql` — políticas RLS concedem INSERT a
+// authenticated e SELECT/UPDATE/DELETE a service_role.
 const BUCKET = 'documents';
+
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  recipe: 'Receita assinada',
+  exam_result: 'Resultado de exame',
+  prescription: 'Prescrição',
+  report: 'Laudo',
+  other: 'Documento',
+};
 
 interface PatientParams {
   patientId: string;
@@ -96,6 +105,46 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         ipAddress: (request.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? request.ip,
       });
 
+      // Notificar a outra parte (in-app + push) sobre o novo documento.
+      try {
+        const patientRow = await prisma.patient.findUnique({
+          where: { id: access.patientId },
+          select: {
+            userId: true,
+            user: { select: { fullName: true } },
+            doctor: { select: { userId: true, user: { select: { fullName: true } } } },
+          },
+        });
+        if (patientRow) {
+          const recipientUserId =
+            access.role === 'patient'
+              ? patientRow.doctor?.userId
+              : patientRow.userId;
+          // Nome de quem enviou (médico usa nome completo; paciente usa nome completo).
+          const senderLabel =
+            access.role === 'patient'
+              ? patientRow.user?.fullName ?? 'Paciente'
+              : patientRow.doctor?.user?.fullName
+                ? `Dr. ${patientRow.doctor.user.fullName}`
+                : 'Médico';
+          if (recipientUserId) {
+            const typeLabel =
+              DOCUMENT_TYPE_LABELS[documentType] ?? 'documento';
+            const notifTitle = `Novo documento de ${senderLabel}`;
+            const notifBody = `${typeLabel}${fileName ? `: ${fileName}` : ''}`.slice(0, 160);
+            await createNotification({
+              userId: recipientUserId,
+              type: 'new_document',
+              title: notifTitle,
+              body: notifBody,
+              relatedDemandId: document.id,
+            });
+          }
+        }
+      } catch (err) {
+        app.log.warn({ err }, 'document upload notification failed (non-blocking)');
+      }
+
       return reply.code(201).send({ ok: true, document });
     },
   );
@@ -134,8 +183,19 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       const storagePrefix = `${process.env.SUPABASE_URL}/storage/v1/object/${BUCKET}/`;
       const storagePath = document.fileUrl.replace(storagePrefix, '');
 
-      const signedUrl = await createSignedDownloadUrl(BUCKET, storagePath, 3600);
-      return { signedUrl, expiresInSeconds: 3600 };
+      try {
+        const signedUrl = await createSignedDownloadUrl(BUCKET, storagePath, 3600);
+        return { signedUrl, expiresInSeconds: 3600 };
+      } catch (err) {
+        request.log.error(
+          { err, storagePath, documentId: document.id },
+          'Download URL failed',
+        );
+        return reply.code(500).send({
+          error:
+            'Não foi possível gerar o link de download. O arquivo pode não existir.',
+        });
+      }
     },
   );
 

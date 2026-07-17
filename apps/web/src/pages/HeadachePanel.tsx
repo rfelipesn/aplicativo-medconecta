@@ -8,10 +8,10 @@ interface HeadachePanelProps {
 }
 
 function getSeverityColor(label: string): string {
-  if (label === 'Leve' || label === 'leve') return '#10b981';
-  if (label === 'Moderado' || label === 'moderado') return '#f59e0b';
-  if (label === 'Severo' || label === 'severo') return '#ef4444';
-  return '#6b7280';
+  if (label === 'Leve' || label === 'leve') return '#34C98E';
+  if (label === 'Moderado' || label === 'moderado') return '#FF9F45';
+  if (label === 'Severo' || label === 'severo') return '#FF5D5D';
+  return '#6B7F84';
 }
 
 function formatDuration(minutes: number | null): string {

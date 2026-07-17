@@ -1,13 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPatch } from '../lib/api';
+import { apiGet, apiPatch, apiPost } from '../lib/api';
 import type { DemandsResponse, Demand } from '../types';
 
 const DEMAND_TYPE_LABELS: Record<string, string> = {
   recipe_renewal: 'Renovação de Receita',
   appointment_request: 'Solicitação de Agendamento',
-  exam_result: 'Resultado de Exame',
-  symptom_log: 'Relato de Sintoma',
   general_question: 'Pergunta Geral',
   second_opinion: 'Segunda Opinião',
 };
@@ -19,19 +17,30 @@ const DEMAND_STATUS_LABELS: Record<string, string> = {
   pending_action: 'Ação Pendente',
 };
 
+/** Fluent Accent priority / status colors */
 const DEMAND_PRIORITY_COLORS: Record<string, string> = {
-  urgent: '#dc2626', // vermelho
-  elective: '#2563eb', // azul
-  informational: '#059669', // verde
-  other: '#6b7280', // cinza
+  urgent: '#FF5D5D',
+  elective: '#FF9F45',
+  informational: '#4E9EF5',
+  other: '#9D7BFF',
 };
 
 const DEMAND_STATUS_COLORS: Record<string, string> = {
-  open: '#f59e0b', // amarelo
-  responded: '#10b981', // verde
-  closed: '#6b7280', // cinza
-  pending_action: '#8b5cf6', // roxo
+  open: '#FF9F45',
+  responded: '#34C98E',
+  closed: '#6B7F84',
+  pending_action: '#9D7BFF',
 };
+
+function waitLabel(createdAt: string): string {
+  const ms = Date.now() - new Date(createdAt).getTime();
+  if (Number.isNaN(ms) || ms < 0) return 'agora';
+  const mins = Math.floor(ms / 60_000);
+  if (mins < 60) return `${Math.max(1, mins)} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 48) return `${hours} h`;
+  return `${Math.floor(hours / 24)} d`;
+}
 
 interface DemandsPanelProps {
   patientId?: string | null;
@@ -42,9 +51,16 @@ export function DemandsPanel({ patientId }: DemandsPanelProps) {
   const [selectedDemand, setSelectedDemand] = useState<Demand | null>(null);
   const [responseNotes, setResponseNotes] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('open');
+  const [attachFile, setAttachFile] = useState<File | null>(null);
+  const [attachError, setAttachError] = useState<string | null>(null);
+  const attachRef = useRef<HTMLInputElement>(null);
+  const [apptDate, setApptDate] = useState('');
+  const [apptTime, setApptTime] = useState('');
+  const [apptLocation, setApptLocation] = useState('');
+  const [apptError, setApptError] = useState<string | null>(null);
 
   const demandsQuery = useQuery({
-    queryKey: ['demands', patientId],
+    queryKey: ['demands', patientId, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (statusFilter) params.set('status', statusFilter);
@@ -53,10 +69,47 @@ export function DemandsPanel({ patientId }: DemandsPanelProps) {
       const response = await apiGet<DemandsResponse>(`/demands?${params.toString()}`);
       return response;
     },
+    // Paciente cria demanda em outra sessão; médico precisa ver sem F5.
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 
   const respondDemand = useMutation({
-    mutationFn: async (data: { demandId: string; notes: string; status: 'responded' | 'closed' | 'pending_action' }) => {
+    mutationFn: async (data: { demandId: string; notes: string; status: 'responded' | 'closed' | 'pending_action'; demand?: Demand }) => {
+      // Se for demanda de receita e houver arquivo anexo, faz upload do documento
+      // no Storage e registra no banco antes de marcar a demanda como respondida.
+      if (data.demand && attachFile && data.demand.type === 'recipe_renewal') {
+        const pid = data.demand.patient?.id;
+        if (pid) {
+          try {
+            setAttachError(null);
+            const signed = await apiPost<{ signedUrl: string; storagePath: string }>(
+              `/patients/${pid}/documents/sign-upload`,
+              {
+                filename: attachFile.name,
+                mimeType: attachFile.type || 'application/octet-stream',
+                documentType: 'recipe',
+              },
+            );
+            const putRes = await fetch(signed.signedUrl, {
+              method: 'PUT',
+              headers: { 'Content-Type': attachFile.type || 'application/octet-stream' },
+              body: attachFile,
+            });
+            if (!putRes.ok) throw new Error(`Upload falhou (${putRes.status})`);
+            await apiPost(`/patients/${pid}/documents`, {
+              storagePath: signed.storagePath,
+              documentType: 'recipe',
+              fileName: attachFile.name,
+              fileSize: attachFile.size,
+              mimeType: attachFile.type || 'application/octet-stream',
+            });
+          } catch (err) {
+            setAttachError(err instanceof Error ? err.message : 'Falha no anexo.');
+            throw err;
+          }
+        }
+      }
       await apiPatch(`/demands/${data.demandId}/respond`, {
         status: data.status,
         responseNotes: data.notes,
@@ -64,8 +117,12 @@ export function DemandsPanel({ patientId }: DemandsPanelProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['demands'] });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
       setSelectedDemand(null);
       setResponseNotes('');
+      setAttachFile(null);
+      setAttachError(null);
+      if (attachRef.current) attachRef.current.value = '';
     },
   });
 
@@ -80,10 +137,31 @@ export function DemandsPanel({ patientId }: DemandsPanelProps) {
     },
   });
 
+  const confirmAppointment = useMutation({
+    mutationFn: async (data: { demandId: string; date: string; time: string; location: string }) => {
+      await apiPatch(`/demands/${data.demandId}/confirm-appointment`, {
+        date: data.date,
+        time: data.time,
+        location: data.location,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['demands'] });
+      setSelectedDemand(null);
+      setApptDate('');
+      setApptTime('');
+      setApptLocation('');
+      setApptError(null);
+    },
+    onError: (err) => {
+      setApptError(err instanceof Error ? err.message : 'Erro ao confirmar consulta.');
+    },
+  });
+
   return (
     <section className="panel">
       <header className="panel-header">
-        <h2>📋 Demandas</h2>
+        <h2>Demandas</h2>
         <div className="filter-group">
           <label htmlFor="status-filter">Status:</label>
           <select
@@ -136,6 +214,9 @@ export function DemandsPanel({ patientId }: DemandsPanelProps) {
                           Paciente: {demand.patient.user.fullName}
                         </span>
                       )}
+                      <span className="demand-wait" title={new Date(demand.createdAt).toLocaleString('pt-BR')}>
+                        Espera: <strong>{waitLabel(demand.createdAt)}</strong>
+                      </span>
                       <span className="demand-date">
                         {new Date(demand.createdAt).toLocaleDateString('pt-BR')}
                       </span>
@@ -170,6 +251,22 @@ export function DemandsPanel({ patientId }: DemandsPanelProps) {
                           placeholder="Digite sua resposta..."
                           rows={4}
                         />
+                        {demand.type === 'recipe_renewal' && (
+                          <div className="demand-attach" style={{ marginTop: 8 }}>
+                            <label className="muted small" style={{ display: 'block', marginBottom: 4 }}>
+                              Anexar receita (PDF, JPG, PNG) — opcional
+                            </label>
+                            <input
+                              ref={attachRef}
+                              type="file"
+                              accept="application/pdf,image/jpeg,image/png"
+                              onChange={(e) => setAttachFile(e.target.files?.[0] ?? null)}
+                            />
+                            {attachError && (
+                              <div className="auth-error" style={{ marginTop: 4 }}>{attachError}</div>
+                            )}
+                          </div>
+                        )}
                         <div className="demand-response-actions">
                           <button
                             className="btn-primary"
@@ -178,6 +275,7 @@ export function DemandsPanel({ patientId }: DemandsPanelProps) {
                                 demandId: demand.id,
                                 notes: responseNotes,
                                 status: 'responded',
+                                demand,
                               })
                             }
                             disabled={respondDemand.isPending}
@@ -191,6 +289,7 @@ export function DemandsPanel({ patientId }: DemandsPanelProps) {
                                 demandId: demand.id,
                                 notes: responseNotes,
                                 status: 'pending_action',
+                                demand,
                               })
                             }
                             disabled={respondDemand.isPending}
@@ -205,6 +304,65 @@ export function DemandsPanel({ patientId }: DemandsPanelProps) {
                             Fechar Demanda
                           </button>
                         </div>
+
+                        {demand.type === 'appointment_request' && (
+                          <div className="demand-attach" style={{ marginTop: 12 }}>
+                            <h4 style={{ margin: '0 0 6px' }}>Confirmar consulta</h4>
+                            <p className="muted small" style={{ margin: '0 0 8px' }}>
+                              Marca a demanda como respondida e envia ao paciente a data/hora/local.
+                            </p>
+                            <div className="row">
+                              <label>
+                                Data
+                                <input
+                                  type="date"
+                                  value={apptDate}
+                                  onChange={(e) => setApptDate(e.target.value)}
+                                />
+                              </label>
+                              <label>
+                                Hora
+                                <input
+                                  type="time"
+                                  value={apptTime}
+                                  onChange={(e) => setApptTime(e.target.value)}
+                                />
+                              </label>
+                            </div>
+                            <label style={{ display: 'block', marginTop: 6 }}>
+                              Local
+                              <input
+                                type="text"
+                                value={apptLocation}
+                                onChange={(e) => setApptLocation(e.target.value)}
+                                placeholder="Ex: Consultório — Rua X, 123"
+                              />
+                            </label>
+                            {apptError && (
+                              <div className="auth-error" style={{ marginTop: 4 }}>{apptError}</div>
+                            )}
+                            <button
+                              className="btn-primary"
+                              style={{ marginTop: 8 }}
+                              onClick={() =>
+                                confirmAppointment.mutate({
+                                  demandId: demand.id,
+                                  date: apptDate,
+                                  time: apptTime,
+                                  location: apptLocation,
+                                })
+                              }
+                              disabled={
+                                confirmAppointment.isPending ||
+                                !apptDate ||
+                                !apptTime ||
+                                !apptLocation.trim()
+                              }
+                            >
+                              {confirmAppointment.isPending ? 'Confirmando...' : 'Confirmar Consulta'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
 

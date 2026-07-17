@@ -63,6 +63,7 @@ export interface AppNotification {
   body: string;
   readAt: string | null;
   createdAt: string;
+  relatedDemandId?: string | null;
 }
 
 export interface NotificationsResponse {

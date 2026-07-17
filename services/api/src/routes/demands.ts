@@ -19,6 +19,40 @@ function getIp(request: import('fastify').FastifyRequest): string | null {
 }
 
 /**
+ * Extrai `responseNotes` derivado do campo `description`.
+ *
+ * O schema Prisma atual não possui coluna dedicada para a resposta do médico,
+ * então ela é persistida como um bloco "— Resposta do médico (ISO):\n…" no
+ * final de `description`. Esta função separa os dois para o frontend, que
+ * espera `responseNotes` como campo distinto. Quando houver migration para um
+ * campo dedicado, basta removê-la.
+ */
+const RESPONSE_MARKER = '\n\n— Resposta do médico (';
+
+function splitResponseNotes(description: string | null | undefined): {
+  description: string | null;
+  responseNotes: string | null;
+} {
+  if (!description) return { description: null, responseNotes: null };
+  const idx = description.indexOf(RESPONSE_MARKER);
+  if (idx === -1) return { description, responseNotes: null };
+  const original = description.slice(0, idx).trim() || null;
+  const block = description.slice(idx + RESPONSE_MARKER.length);
+  // bloco: "2026-07-17T...):\n<notas>"
+  const nl = block.indexOf('\n');
+  const notes = nl === -1 ? block.trim() : block.slice(nl + 1).trim();
+  return { description: original, responseNotes: notes || null };
+}
+
+/** Aplica `splitResponseNotes` a uma demanda (ou lista) para o frontend. */
+function withResponseNotes<T extends { description?: string | null }>(
+  demand: T,
+): T & { responseNotes: string | null } {
+  const { description, responseNotes } = splitResponseNotes(demand.description);
+  return { ...demand, description, responseNotes };
+}
+
+/**
  * Rotas de Demandas.
  *
  * Demandas são solicitações assíncronas do paciente ao médico (renovação de receita,
@@ -106,7 +140,7 @@ export async function registerDemandRoutes(app: FastifyInstance) {
           await sendPushToUser(doctor.userId, {
             title: title2,
             body: `${patient.user.fullName}: ${bodyPreview}`,
-            data: { type: 'new_demand', demandId: demand.id },
+            data: { type: 'new_demand', relatedDemandId: demand.id },
           });
         } catch (err) {
           app.log.warn({ err }, 'push notification failed (non-blocking)');
@@ -162,7 +196,7 @@ export async function registerDemandRoutes(app: FastifyInstance) {
         prisma.demand.count({ where }),
       ]);
 
-      return { demands, total };
+      return { demands: demands.map(withResponseNotes), total };
     },
   );
 
@@ -189,7 +223,7 @@ export async function registerDemandRoutes(app: FastifyInstance) {
         orderBy: { createdAt: 'desc' },
       });
 
-      return { demands };
+      return { demands: demands.map(withResponseNotes) };
     },
   );
 
@@ -232,7 +266,7 @@ export async function registerDemandRoutes(app: FastifyInstance) {
         return reply.code(403).send({ error: 'forbidden' });
       }
 
-      return { demand };
+      return { demand: withResponseNotes(demand) };
     },
   );
 
@@ -292,11 +326,17 @@ export async function registerDemandRoutes(app: FastifyInstance) {
       const data: Record<string, unknown> = { status };
       if (status === 'responded') data.respondedAt = new Date();
       if (status === 'closed') data.closedAt = new Date();
-      if (responseNotes !== undefined) {
-        // Concatenar notas ao histórico (description armazena a questão original;
-        // usamos um campo dedicado no futuro; por ora, guardamos no título se vazio)
-        // NOTA: para MVP, não temos campo de "responseNotes" no schema Prisma.
-        // Salvaremos como parte de description (append).
+      if (responseNotes !== undefined && responseNotes.trim()) {
+        // O schema Prisma atual não possui campo dedicado para responseNotes.
+        // Persistimos as notas com marcador no campo `description` (append),
+        // preservando a descrição original do paciente. Quando houver migration
+        // para um campo dedicado, basta substituir este bloco.
+        const notes = responseNotes.trim();
+        const original = demand.description ?? '';
+        const stamp = new Date().toISOString();
+        data.description = original
+          ? `${original}\n\n— Resposta do médico (${stamp}):\n${notes}`
+          : `Resposta do médico (${stamp}):\n${notes}`;
       }
 
       const updated = await prisma.demand.update({
@@ -337,27 +377,43 @@ export async function registerDemandRoutes(app: FastifyInstance) {
           responseNotes && responseNotes.trim()
             ? responseNotes.trim().slice(0, 120) + (responseNotes.length > 120 ? '…' : '')
             : 'Sua demanda foi respondida.';
+        // Buscar nome do médico para título mais humano.
+        const doctorRow = await prisma.doctor.findUnique({
+          where: { id: demand.doctorId },
+          select: { user: { select: { fullName: true } } },
+        });
+        const doctorName = doctorRow?.user?.fullName ?? 'Médico';
+        const demandTypeLabels2: Record<string, string> = {
+          recipe_renewal: 'Renovação de receita',
+          appointment_request: 'Agendamento',
+          exam_result: 'Resultado de exame',
+          symptom_log: 'Relato de sintoma',
+          general_question: 'Pergunta geral',
+          second_opinion: 'Segunda opinião',
+        };
+        const demandLabel = demandTypeLabels2[demand.type] ?? 'Demanda';
+        const notifTitle = `Dr. ${doctorName} respondeu sua demanda`;
         await createNotification({
           userId: demand.patient.userId,
           type: 'demand_response',
-          title: 'Sua demanda recebeu resposta',
-          body: preview,
+          title: notifTitle,
+          body: `${demandLabel}: ${preview}`,
           relatedDemandId: demand.id,
         });
         // Enviar push notification para o paciente
         try {
           const { sendPushToUser } = await import('../lib/pushNotifications.js');
           await sendPushToUser(demand.patient.userId, {
-            title: 'Sua demanda recebeu resposta',
-            body: preview,
-            data: { type: 'demand_response', demandId: demand.id },
+            title: notifTitle,
+            body: `${demandLabel}: ${preview}`,
+            data: { type: 'demand_response', relatedDemandId: demand.id },
           });
         } catch (err) {
           app.log.warn({ err }, 'push notification to patient failed (non-blocking)');
         }
       }
 
-      return { ok: true, demand: updated };
+      return { ok: true, demand: withResponseNotes(updated) };
     },
   );
 
@@ -422,6 +478,124 @@ export async function registerDemandRoutes(app: FastifyInstance) {
       }
 
       return { ok: true };
+    },
+  );
+
+  // ── Confirmar consulta (médico responde a demanda de agendamento) ─────────
+  // Marca a demanda como 'responded' e envia notificação ao paciente com
+  // data/hora/local da consulta confirmada.
+  app.patch<{ Params: { demandId: string } }>(
+    '/demands/:demandId/confirm-appointment',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const doctor = await getDoctorForRequest(request);
+      const userId = request.authUser!.id;
+
+      const body = request.body as {
+        date?: string;
+        time?: string;
+        location?: string;
+      };
+      if (!body?.date || !body?.time || !body?.location?.trim()) {
+        return reply
+          .code(400)
+          .send({ error: 'validation', message: 'date, time e location são obrigatórios.' });
+      }
+
+      const demand = await prisma.demand.findUnique({
+        where: { id: request.params.demandId },
+        include: {
+          patient: {
+            select: { userId: true, user: { select: { fullName: true } } },
+          },
+        },
+      });
+      if (!demand) return reply.code(404).send({ error: 'not_found' });
+      if (demand.status === 'closed') {
+        return reply.code(400).send({ error: 'demand_already_closed' });
+      }
+
+      // Autorização: médico responsável OU assistente com can_respond.
+      let actingAsAssistant = false;
+      if (doctor && doctor.id === demand.doctorId) {
+        actingAsAssistant = false;
+      } else {
+        const assistant = await prisma.doctorAssistant.findFirst({
+          where: { assistantUserId: userId, doctorId: demand.doctorId },
+        });
+        const perms = (assistant?.permissions ?? {}) as { can_respond?: boolean };
+        if (assistant && perms.can_respond === true) {
+          actingAsAssistant = true;
+        } else {
+          return reply.code(403).send({ error: 'forbidden' });
+        }
+      }
+
+      const dateStr = body.date;
+      const timeStr = body.time;
+      const location = body.location.trim();
+      const confirmNotes = `Consulta confirmada\nData: ${dateStr}\nHorário: ${timeStr}\nLocal: ${location}`;
+
+      const original = demand.description ?? '';
+      const stamp = new Date().toISOString();
+      const newDescription = original
+        ? `${original}\n\n— Resposta do médico (${stamp}):\n${confirmNotes}`
+        : `Resposta do médico (${stamp}):\n${confirmNotes}`;
+
+      const updated = await prisma.demand.update({
+        where: { id: demand.id },
+        data: {
+          status: 'responded',
+          respondedAt: new Date(),
+          description: newDescription,
+        },
+      });
+
+      if (actingAsAssistant) {
+        await logAssistantAction({
+          assistantUserId: userId,
+          resourceType: 'demand',
+          resourceId: demand.id,
+          action: 'confirm_appointment',
+          ipAddress: getIp(request),
+        });
+      } else {
+        await auditLog({
+          userId,
+          resourceType: 'demand',
+          resourceId: demand.id,
+          action: 'confirm_appointment',
+          ipAddress: getIp(request),
+        });
+      }
+
+      // Notificar o paciente (in-app + push).
+      const doctorRow = await prisma.doctor.findUnique({
+        where: { id: demand.doctorId },
+        select: { user: { select: { fullName: true } } },
+      });
+      const doctorName = doctorRow?.user?.fullName ?? 'Médico';
+      const notifTitle = `Dr. ${doctorName} confirmou sua consulta`;
+      const notifBody = `Data: ${dateStr} · Horário: ${timeStr} · Local: ${location}`;
+      await createNotification({
+        userId: demand.patient.userId,
+        type: 'appointment_confirmed',
+        title: notifTitle,
+        body: notifBody,
+        relatedDemandId: demand.id,
+      });
+      try {
+        const { sendPushToUser } = await import('../lib/pushNotifications.js');
+        await sendPushToUser(demand.patient.userId, {
+          title: notifTitle,
+          body: notifBody,
+          data: { type: 'appointment_confirmed', relatedDemandId: demand.id },
+        });
+      } catch (err) {
+        app.log.warn({ err }, 'push appointment_confirmed failed (non-blocking)');
+      }
+
+      return { ok: true, demand: withResponseNotes(updated) };
     },
   );
 }

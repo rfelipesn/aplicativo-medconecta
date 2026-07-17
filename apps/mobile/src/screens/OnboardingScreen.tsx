@@ -18,20 +18,22 @@ import { apiCompleteOnboarding, apiGet, apiPost, ApiError } from '../lib/api';
 import { authenticateWithBiometrics, isBiometricAvailable } from '../lib/biometrics';
 import { secureSet } from '../lib/secureStorage';
 import type { MeResponse } from '../types';
+import { T } from '../theme/tokens';
+import { FluentIcon } from '../components/FluentIcon';
 
 /** Chave do PIN/senha de desbloqueio LOCAL do app (nunca vai para o servidor). */
 const LOCAL_UNLOCK_KEY = 'local_unlock_secret';
 
 const C = {
-  primary: '#85B7BF',
-  onPrimary: '#0F3B41',
-  bg: '#F5F7FA',
-  surface: '#FFFFFF',
-  text: '#333333',
-  muted: '#6B7B8D',
-  border: '#DDE3EA',
-  danger: '#C0392B',
-  dangerBg: '#FFF3F3',
+  primary: T.color.primaryStrong,
+  onPrimary: T.color.onPrimary,
+  bg: T.color.bg,
+  surface: T.color.surface,
+  text: T.color.text,
+  muted: T.color.textSecondary,
+  border: T.color.separator,
+  danger: T.color.red,
+  dangerBg: T.color.redSoft,
 };
 
 type Step = 'welcome' | 'scope' | 'terms' | 'password';
@@ -335,6 +337,18 @@ export function OnboardingScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+      <View style={styles.brandHeader}>
+        <View style={styles.brandMark}>
+          <FluentIcon name="medical-bag" size={22} color={T.color.primaryStrong} />
+        </View>
+        <View style={styles.brandText}>
+          <Text style={styles.brandName}>MEDconecta</Text>
+          <Text style={styles.brandStep}>Configuração segura do paciente</Text>
+        </View>
+        <View style={styles.stepBadge}>
+          <Text style={styles.stepBadgeText}>{STEP_ORDER.indexOf(safeStep) + 1}/4</Text>
+        </View>
+      </View>
       {completed ? (
         <View style={styles.card}>
           <ActivityIndicator color={C.primary} />
@@ -380,29 +394,69 @@ export function OnboardingScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg, padding: 16 },
   flex: { flex: 1 },
+  brandHeader: {
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  brandMark: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: T.color.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...T.shadow.soft,
+  },
+  brandText: { flex: 1 },
+  brandName: { color: T.color.primaryDark, fontSize: 17, fontWeight: '800', letterSpacing: -0.3 },
+  brandStep: { color: C.muted, fontSize: 10.5, marginTop: 1 },
+  stepBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: T.radius.pill, backgroundColor: T.color.primarySoft },
+  stepBadgeText: { color: T.color.primaryStrong, fontSize: 11, fontWeight: '800', fontVariant: ['tabular-nums'] },
   progressTrack: {
-    height: 4,
-    backgroundColor: '#E1E8F0',
-    borderRadius: 2,
-    marginBottom: 24,
-    marginTop: 8,
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
+    height: 5,
+    backgroundColor: T.color.separator,
+    borderRadius: 3,
+    marginBottom: 16,
   },
   progressFill: {
     height: 4,
-    backgroundColor: C.primary,
-    borderRadius: 2,
+    backgroundColor: T.color.primaryStrong,
+    borderRadius: 3,
   },
   card: {
     flex: 1,
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
     backgroundColor: C.surface,
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: T.radius.xxl,
+    padding: 26,
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: T.color.border,
+    ...T.shadow.card,
   },
   cardScroll: {
     flex: 1,
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
     backgroundColor: C.surface,
-    borderRadius: 16,
+    borderRadius: T.radius.xxl,
+    borderWidth: 1,
+    borderColor: T.color.border,
+    ...T.shadow.card,
   },
   cardContent: {
     padding: 24,
@@ -410,14 +464,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   logo: {
-    color: C.primary,
+    color: T.color.primaryStrong,
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: '800',
     marginBottom: 16,
   },
   cardTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
     color: C.text,
     marginBottom: 16,
   },
@@ -429,9 +483,11 @@ const styles = StyleSheet.create({
   },
   noticeBox: {
     backgroundColor: C.dangerBg,
-    borderRadius: 12,
+    borderRadius: T.radius.lg,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFD6D0',
   },
   dangerTitle: {
     color: C.danger,
@@ -453,7 +509,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 12,
+    padding: 11,
+    borderRadius: T.radius.md,
+    backgroundColor: T.color.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: T.color.border,
   },
   checkboxLabel: {
     flex: 1,
@@ -473,7 +534,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: '#EEF1F5',
+    borderColor: T.color.separator,
   },
   label: {
     fontSize: 13,
@@ -483,10 +544,11 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: C.border,
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: T.radius.md,
+    padding: 14,
     fontSize: 18,
     color: C.text,
+    backgroundColor: T.color.surfaceSubtle,
     marginBottom: 16,
     letterSpacing: 2,
   },
@@ -498,9 +560,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   btn: {
-    backgroundColor: C.primary,
-    borderRadius: 10,
-    padding: 14,
+    backgroundColor: T.color.primaryStrong,
+    borderRadius: T.radius.md,
+    padding: 15,
     alignItems: 'center',
     marginTop: 'auto',
   },
@@ -508,7 +570,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   btnText: {
-    color: C.onPrimary,
+    color: T.color.white,
     fontSize: 16,
     fontWeight: '700',
   },

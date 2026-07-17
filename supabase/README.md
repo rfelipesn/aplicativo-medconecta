@@ -37,6 +37,16 @@ supabase db push
 ## Storage (buckets privados)
 
 Criar buckets privados com signed URLs de curta duração:
-- `exams` (PDF/JPEG/PNG)
+- `documents` (PDF/JPG/PNG/DOC — documentos gerais do paciente: receitas assinadas, anexos de demanda, etc.)
+- `exams` (PDF/JPEG/PNG — exames enviados pelo paciente)
 - `audios` (relatos e chat)
 - `recipes` (PDF da receita anexado pelo médico)
+
+### Políticas RLS de Storage
+
+Aplicadas via migration `0003_storage_buckets_policies.sql` (ou diretamente no SQL Editor):
+
+- `documents`, `exams`: `INSERT` para `authenticated`; `SELECT/UPDATE/DELETE` para `service_role` (a API gera signed URLs com service_role; clientes nunca leem diretamente).
+- `audios`, `recipes`: mesmas políticas (recomendado alinhar ao criar).
+
+> Pré-requisito: o bucket `documents` deve existir (criado via `INSERT INTO storage.buckets (id, name, public) VALUES ('documents','documents',false)`).

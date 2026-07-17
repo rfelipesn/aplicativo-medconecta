@@ -15,6 +15,7 @@
   "dependencies": {
     "@babel/plugin-proposal-decorators": "^7.29.7",
     "@expo/metro-runtime": "~4.0.1",
+    "@expo/vector-icons": "~14.0.4",
     "@medconecta/shared": "*",
     "@nozbe/watermelondb": "^0.27.1",
     "@nozbe/with-observables": "^1.6.0",
@@ -29,6 +30,7 @@
     "expo-camera": "~16.0.7",
     "expo-device": "~5.4.0",
     "expo-file-system": "~18.0.4",
+    "expo-linear-gradient": "~14.0.2",
     "expo-local-authentication": "~15.0.1",
     "expo-notifications": "~0.20.0",
     "expo-secure-store": "~14.0.0",

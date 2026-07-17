@@ -131,8 +131,9 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       return reply.code(401).send({ error: 'invalid_credentials' });
     }
 
-    // O e-mail do Supabase Auth é {cpf}@medconecta.local e a senha é o birthDate (DDMMAAAA).
-    const email = cpfToEmail(cpfDigits);
+    // O paciente entra com CPF, mas o Supabase Auth usa o e-mail que foi gravado
+    // no cadastro (pode ser o e-mail real ou o fallback {cpf}@medconecta.local).
+    const email = user.email ?? cpfToEmail(cpfDigits);
     try {
       const session = await signInWithPassword({ email, password: birthDate });
 

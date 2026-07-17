@@ -4,19 +4,23 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { env } from '../config/env';
 import { supabase } from '../lib/supabase';
 import { useBiometricLogin } from '../hooks/useBiometricLogin';
 import { ELECTIVE_SCOPE_NOTICE } from '@medconecta/shared';
 import { T } from '../theme/tokens';
+import { FluentIcon } from '../components/FluentIcon';
 
 const MAX_BIOMETRIC_FAILURES = 3;
+const LOGIN_TIMEOUT_MS = 15_000;
 
 /** Remove tudo que não for dígito */
 function onlyDigits(s: string) {
@@ -53,12 +57,20 @@ interface LoginResponse {
 }
 
 async function performLogin(cpfDigits: string, birthDigits: string): Promise<LoginResponse> {
-  const res = await fetch(`${env.apiUrl}/auth/login/patient`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cpf: cpfDigits, birthDate: dateToPassword(birthDigits) }),
-  });
-  return (await res.json()) as LoginResponse;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), LOGIN_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`${env.apiUrl}/auth/login/patient`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cpf: cpfDigits, birthDate: dateToPassword(birthDigits) }),
+      signal: controller.signal,
+    });
+    return (await res.json()) as LoginResponse;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export function LoginScreen() {
@@ -190,20 +202,30 @@ export function LoginScreen() {
   const anyLoading = loading || biometricLoading;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.header}>
-        <View style={styles.logoMark}>
-          <Text style={styles.logoMarkText}>＋</Text>
-        </View>
-        <Text style={styles.logo}>MEDconecta</Text>
-        <Text style={styles.sub}>Canal eletivo médico-paciente</Text>
-      </View>
+    <LinearGradient colors={[T.color.primaryStrong, T.color.primary, T.color.primarySoft]} style={styles.root}>
+      <View style={styles.orbLarge} />
+      <View style={styles.orbSmall} />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.shell}
+        >
+          <View style={styles.header}>
+            <View style={styles.logoMark}>
+              <FluentIcon name="medical-bag" size={31} color={T.color.primaryStrong} />
+            </View>
+            <Text style={styles.logo}>MEDconecta</Text>
+            <Text style={styles.sub}>Canal eletivo médico-paciente</Text>
+          </View>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>Entrar</Text>
+          <View style={styles.card}>
+            <View style={styles.cardEyebrow}>
+              <View style={styles.cardEyebrowLine} />
+              <Text style={styles.cardEyebrowText}>ACESSO DO PACIENTE</Text>
+            </View>
+            <Text style={styles.title}>Entrar</Text>
+            <Text style={styles.titleHint}>Use os dados informados no cadastro médico.</Text>
 
         {showBiometricButton && (
           <TouchableOpacity
@@ -213,7 +235,10 @@ export function LoginScreen() {
             accessibilityRole="button"
             accessibilityLabel="Entrar com biometria"
           >
-            <Text style={styles.btnBiometricText}>Entrar com biometria</Text>
+            <View style={styles.biometricContent}>
+              <FluentIcon name="fingerprint" size={21} color={T.color.primaryStrong} />
+              <Text style={styles.btnBiometricText}>Entrar com biometria</Text>
+            </View>
           </TouchableOpacity>
         )}
 
@@ -257,77 +282,100 @@ export function LoginScreen() {
         <Text style={styles.hint}>
           Suas credenciais foram informadas pelo seu médico no momento do cadastro.
         </Text>
-      </View>
+          </View>
 
-      <Text style={styles.disclaimer}>{ELECTIVE_SCOPE_NOTICE.disclaimer}</Text>
-    </KeyboardAvoidingView>
+          <View style={styles.disclaimerRow}>
+            <FluentIcon name="shield-check-outline" size={15} color="rgba(255,255,255,0.90)" />
+            <Text style={styles.disclaimer}>{ELECTIVE_SCOPE_NOTICE.disclaimer}</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: T.color.bg, justifyContent: 'center' },
+  root: { flex: 1 },
+  flex: { flex: 1 },
+  shell: { flexGrow: 1, justifyContent: 'center', paddingVertical: 28 },
+  orbLarge: { position: 'absolute', width: 230, height: 230, borderRadius: 115, backgroundColor: 'rgba(255,255,255,0.09)', right: -80, top: -70 },
+  orbSmall: { position: 'absolute', width: 130, height: 130, borderRadius: 65, backgroundColor: 'rgba(255,255,255,0.08)', left: -48, bottom: 80 },
   header: { alignItems: 'center', paddingHorizontal: 32, marginBottom: T.space.lg },
   logoMark: {
     width: 64,
     height: 64,
-    borderRadius: T.radius.lg,
-    backgroundColor: T.color.primary,
+    borderRadius: 20,
+    backgroundColor: T.color.acrylicStrong,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: T.space.md,
     ...T.shadow.card,
   },
-  logoMarkText: { color: T.color.onPrimary, fontSize: 34, fontWeight: '800', marginTop: -2 },
-  logo: { color: T.color.text, fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
-  sub: { color: T.color.textSecondary, marginTop: 4, fontSize: T.font.subhead },
+  logo: { color: T.color.white, fontSize: 29, fontWeight: '800', letterSpacing: -0.9 },
+  sub: { color: 'rgba(255,255,255,0.86)', marginTop: 5, fontSize: T.font.subhead, fontWeight: '600' },
   card: {
-    backgroundColor: T.color.surface,
-    margin: T.space.md,
-    borderRadius: T.radius.xl,
-    padding: T.space.lg,
-    ...T.shadow.card,
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
+    backgroundColor: T.color.acrylicStrong,
+    marginHorizontal: T.space.md,
+    marginBottom: T.space.md,
+    borderRadius: T.radius.xxl,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#FFFFFF99',
+    ...T.shadow.floating,
   },
-  title: { fontSize: T.font.title, fontWeight: '800', color: T.color.text, marginBottom: T.space.lg },
+  cardEyebrow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
+  cardEyebrowLine: { width: 20, height: 3, borderRadius: 2, backgroundColor: T.color.primary },
+  cardEyebrowText: { color: T.color.primaryStrong, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  title: { fontSize: 25, fontWeight: '800', color: T.color.primaryDark, letterSpacing: -0.4 },
+  titleHint: { color: T.color.textSecondary, fontSize: 12.5, marginTop: 3, marginBottom: T.space.lg },
   btnBiometric: {
     backgroundColor: T.color.primarySoft,
-    borderRadius: T.radius.pill,
-    paddingVertical: 15,
+    borderWidth: 1,
+    borderColor: T.color.separator,
+    borderRadius: T.radius.md,
+    paddingVertical: 13,
     alignItems: 'center',
     marginBottom: T.space.md,
   },
+  biometricContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   btnBiometricText: { color: T.color.primaryDark, fontSize: T.font.body, fontWeight: '700' },
   divider: {
     height: 1,
     backgroundColor: T.color.separator,
     marginBottom: T.space.md,
   },
-  label: { fontSize: T.font.subhead, color: T.color.textSecondary, marginBottom: 6, marginLeft: 4 },
+  label: { fontSize: 12, color: T.color.textSecondary, marginBottom: 7, marginLeft: 4, fontWeight: '700' },
   input: {
-    backgroundColor: T.color.surfaceMuted,
+    backgroundColor: T.color.surfaceSubtle,
     borderRadius: T.radius.md,
+    borderWidth: 1,
+    borderColor: T.color.separator,
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: 15,
     fontSize: T.font.headline,
     color: T.color.text,
     marginBottom: T.space.md,
     letterSpacing: 1,
   },
   btn: {
-    backgroundColor: T.color.primary,
-    borderRadius: T.radius.pill,
+    backgroundColor: T.color.primaryStrong,
+    borderRadius: T.radius.md,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: T.space.xs,
   },
   btnDisabled: { opacity: 0.5 },
-  btnText: { color: T.color.onPrimary, fontSize: T.font.headline, fontWeight: '700' },
+  btnText: { color: T.color.onPrimary, fontSize: T.font.headline, fontWeight: '800' },
   hint: { textAlign: 'center', color: T.color.textTertiary, fontSize: T.font.caption, marginTop: T.space.md, lineHeight: 16 },
+  disclaimerRow: { maxWidth: 520, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 28, marginTop: 2 },
   disclaimer: {
-    textAlign: 'center',
-    color: T.color.textTertiary,
+    flexShrink: 1,
+    textAlign: 'left',
+    color: 'rgba(255,255,255,0.90)',
     fontSize: T.font.caption,
-    paddingHorizontal: 24,
-    marginTop: T.space.sm,
     lineHeight: 16,
   },
 });

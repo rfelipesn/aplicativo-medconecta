@@ -7,12 +7,14 @@ import {
   View,
 } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
 import { apiGet, apiPatch, apiPost } from '../lib/api';
 import type { AppNotification, NotificationsResponse } from '../types';
 import { T } from '../theme/tokens';
+import { FluentIcon, IconSquircle } from '../components/FluentIcon';
 
 const C = {
-  primary: T.color.primary,
+  primary: T.color.primaryStrong,
   onPrimary: T.color.onPrimary,
   bg: T.color.bg,
   surface: T.color.surface,
@@ -30,13 +32,49 @@ function formatDate(iso: string) {
   });
 }
 
-function NotifItem({ item, onRead }: { item: AppNotification; onRead: (id: string) => void }) {
+/**
+ * Mapeia a notificação (in-app) para a rota destino no app.
+ * Espelha `mapNotifToRoute` do hook de push, mas usa `relatedDemandId` do
+ * objeto `AppNotification` retornado pela API.
+ */
+function mapNotifToScreen(item: AppNotification): {
+  screen: 'Tabs';
+  params: { screen: string; params?: object };
+} | { screen: 'Demands'; params: { demandId?: string } } | { screen: 'Documents' } {
+  switch (item.type) {
+    case 'new_chat_message':
+      return { screen: 'Tabs', params: { screen: 'Chat' } };
+    case 'new_recipe_request':
+    case 'recipe_response':
+      return { screen: 'Tabs', params: { screen: 'Receitas' } };
+    case 'new_demand':
+    case 'demand_response':
+      return item.relatedDemandId
+        ? { screen: 'Demands', params: { demandId: item.relatedDemandId } }
+        : { screen: 'Tabs', params: { screen: 'Notificações' } };
+    case 'new_document':
+      return { screen: 'Documents' };
+    default:
+      return { screen: 'Tabs', params: { screen: 'Notificações' } };
+  }
+}
+
+function NotifItem({ item, onRead, onNavigate }: { item: AppNotification; onRead: (id: string) => void; onNavigate: (item: AppNotification) => void }) {
   return (
     <TouchableOpacity
       style={[styles.item, !item.readAt && styles.itemUnread]}
-      onPress={() => { if (!item.readAt) onRead(item.id); }}
+      onPress={() => {
+        if (!item.readAt) onRead(item.id);
+        onNavigate(item);
+      }}
       activeOpacity={0.7}
     >
+      <IconSquircle
+        name={item.readAt ? 'bell-outline' : 'bell-ring-outline'}
+        color={item.readAt ? T.color.textSecondary : T.color.primaryStrong}
+        backgroundColor={item.readAt ? T.color.surfaceMuted : T.color.primarySoft}
+        size={40}
+      />
       <View style={styles.itemContent}>
         <Text style={styles.itemTitle}>{item.title}</Text>
         <Text style={styles.itemBody}>{item.body}</Text>
@@ -49,6 +87,7 @@ function NotifItem({ item, onRead }: { item: AppNotification; onRead: (id: strin
 
 export function NotificationsScreen() {
   const queryClient = useQueryClient();
+  const navigation = useNavigation();
 
   const query = useQuery({
     queryKey: ['notifications'],
@@ -69,6 +108,12 @@ export function NotificationsScreen() {
   const notifications = query.data?.notifications ?? [];
   const unread = query.data?.unreadCount ?? 0;
 
+  function handleNavigate(item: AppNotification) {
+    const route = mapNotifToScreen(item);
+    // @ts-expect-error — navegação aninhada App > (Tabs | Demands | Documents)
+    navigation.navigate('App', route);
+  }
+
   return (
     <View style={styles.root}>
       {unread > 0 && (
@@ -77,9 +122,10 @@ export function NotificationsScreen() {
           onPress={() => markAll.mutate()}
           disabled={markAll.isPending}
         >
-          <Text style={styles.readAllText}>
-            {markAll.isPending ? 'Marcando…' : `Marcar todas lidas (${unread})`}
-          </Text>
+          <View style={styles.readAllContent}>
+            <FluentIcon name="check-all" size={18} color={T.color.white} />
+            <Text style={styles.readAllText}>{markAll.isPending ? 'Marcando…' : `Marcar todas lidas (${unread})`}</Text>
+          </View>
         </TouchableOpacity>
       )}
 
@@ -95,7 +141,11 @@ export function NotificationsScreen() {
           ) : null
         }
         renderItem={({ item }) => (
-          <NotifItem item={item} onRead={(id) => markOne.mutate(id)} />
+          <NotifItem
+            item={item}
+            onRead={(id) => markOne.mutate(id)}
+            onNavigate={handleNavigate}
+          />
         )}
       />
     </View>
@@ -107,23 +157,30 @@ const styles = StyleSheet.create({
   readAllBtn: {
     backgroundColor: C.primary,
     margin: 16,
-    borderRadius: T.radius.pill,
+    width: 'auto',
+    maxWidth: 728,
+    alignSelf: 'center',
+    borderRadius: T.radius.md,
     paddingVertical: 14,
     alignItems: 'center',
     ...T.shadow.soft,
   },
+  readAllContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   readAllText: { color: C.onPrimary, fontWeight: '700' },
-  list: { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 4 },
+  list: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 16, paddingBottom: 32, paddingTop: 4 },
   item: {
-    backgroundColor: C.surface,
+    backgroundColor: T.color.acrylicStrong,
     borderRadius: T.radius.lg,
     padding: T.space.md,
     marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: T.color.border,
     ...T.shadow.soft,
   },
-  itemUnread: { backgroundColor: C.unreadBg },
+  itemUnread: { backgroundColor: '#F1F8F9', borderColor: T.color.primary },
   itemContent: { flex: 1 },
   itemTitle: { fontSize: 14, fontWeight: '700', color: C.text, marginBottom: 2 },
   itemBody: { fontSize: 13, color: C.text, marginBottom: 4 },

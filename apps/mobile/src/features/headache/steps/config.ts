@@ -1,22 +1,21 @@
-/** Definição dos 11 passos do wizard (ordem, rótulo e ícone do stepper). */
+/** Definição dos 11 passos do wizard (ordem e rótulo do stepper). */
 export interface WizardStepDef {
   key: string;
   label: string;
-  icon: string;
 }
 
 export const WIZARD_STEPS: WizardStepDef[] = [
-  { key: 'date', label: 'Data', icon: '📅' },
-  { key: 'duration', label: 'Duraç.', icon: '🕐' },
-  { key: 'intensity', label: 'Intens.', icon: '📊' },
-  { key: 'type', label: 'Tipo', icon: '⚡' },
-  { key: 'location', label: 'Local.', icon: '🧑' },
-  { key: 'symptoms', label: 'Sint.', icon: '🧠' },
-  { key: 'triggers', label: 'Gatilh.', icon: '🎯' },
-  { key: 'medications', label: 'Meds', icon: '💊' },
-  { key: 'relief', label: 'Alívio', icon: '🌸' },
-  { key: 'disability', label: 'Incap.', icon: '🏃' },
-  { key: 'notes', label: 'Anotaç.', icon: '✏️' },
+  { key: 'date', label: 'Data' },
+  { key: 'duration', label: 'Duraç.' },
+  { key: 'intensity', label: 'Intens.' },
+  { key: 'type', label: 'Tipo' },
+  { key: 'location', label: 'Local.' },
+  { key: 'symptoms', label: 'Sint.' },
+  { key: 'triggers', label: 'Gatilh.' },
+  { key: 'medications', label: 'Meds' },
+  { key: 'relief', label: 'Alívio' },
+  { key: 'disability', label: 'Incap.' },
+  { key: 'notes', label: 'Anotaç.' },
 ];
 
 export const STEP_COUNT = WIZARD_STEPS.length;

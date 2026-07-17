@@ -21,16 +21,17 @@ import type { ChatMessage as LocalChatMessage } from '../watermelon/models/ChatM
 import { createLocalChatMessage } from '../watermelon/chatRepository';
 import { syncChatMessages } from '../watermelon/sync';
 import { T } from '../theme/tokens';
+import { FluentIcon } from '../components/FluentIcon';
 
 const C = {
-  primary: T.color.primary,
+  primary: T.color.primaryStrong,
   onPrimary: T.color.onPrimary,
   bg: T.color.bg,
   surface: T.color.surface,
   text: T.color.text,
   muted: T.color.textSecondary,
-  bubbleMine: T.color.primary,
-  bubbleTheirs: '#ECEEEA',
+  bubbleMine: T.color.primaryStrong,
+  bubbleTheirs: T.color.surfaceMuted,
   warn: T.color.primaryDark,
   warnBg: T.color.primarySoft,
 };
@@ -78,35 +79,16 @@ export function ChatScreen() {
     return () => subscription.unsubscribe();
   }, [patientId]);
 
-  // Mensagem de boas-vindas se chat está vazio
+  // Pull periódico do servidor: médico responde no painel; paciente precisa
+  // ver a mensagem sem reabrir o app. (Não há Supabase Realtime no cliente.)
   useEffect(() => {
-    if (!patientId || !doctorId || messages.length > 0) return;
-
-    async function seedWelcomeMessage() {
-      const existing = await localDatabase
-        .get<LocalChatMessage>('chat_messages')
-        .query(Q.where('patient_id', patientId as string))
-        .fetchCount();
-      if (existing > 0) return;
-
-      await localDatabase.write(async () => {
-        await localDatabase.get<LocalChatMessage>('chat_messages').create((msg) => {
-          (msg._raw as Record<string, unknown>).patient_id = patientId;
-          (msg._raw as Record<string, unknown>).doctor_id = doctorId;
-          (msg._raw as Record<string, unknown>).sender_type = 'doctor';
-          (msg._raw as Record<string, unknown>).message_type = 'text';
-          (msg._raw as Record<string, unknown>).content_text = buildWelcomeText(
-            meQuery.data?.user.fullName ?? '',
-          );
-          (msg._raw as Record<string, unknown>).is_read = true;
-          (msg._raw as Record<string, unknown>).local_status = 'synced';
-          (msg._raw as Record<string, unknown>).created_at = Date.now();
-          (msg._raw as Record<string, unknown>).updated_at = Date.now();
-        });
-      });
-    }
-    seedWelcomeMessage().catch(() => undefined);
-  }, [patientId, doctorId, messages.length, meQuery.data?.user.fullName]);
+    if (!patientId) return;
+    syncChatMessages(patientId).catch(() => undefined);
+    const intervalId = setInterval(() => {
+      syncChatMessages(patientId).catch(() => undefined);
+    }, 8_000);
+    return () => clearInterval(intervalId);
+  }, [patientId]);
 
   async function handleSendText() {
     if (!text.trim() || !patientId || !doctorId) return;
@@ -171,8 +153,11 @@ export function ChatScreen() {
       keyboardVerticalOffset={90}
     >
       <View style={styles.noticeBanner}>
-        <Text style={styles.noticeText}>{ELECTIVE_SCOPE_NOTICE.short}</Text>
-        <Text style={styles.noticeText}>{ELECTIVE_SCOPE_NOTICE.emergency}</Text>
+        <FluentIcon name="shield-check-outline" size={19} color={C.warn} />
+        <View style={styles.noticeCopy}>
+          <Text style={styles.noticeText}>{ELECTIVE_SCOPE_NOTICE.short}</Text>
+          <Text style={styles.noticeDetail}>{ELECTIVE_SCOPE_NOTICE.emergency}</Text>
+        </View>
       </View>
 
       <FlatList
@@ -201,84 +186,97 @@ export function ChatScreen() {
           onPressIn={startRecording}
           onPressOut={stopRecording}
         >
-          <Text style={styles.iconText}>{isRecording ? '●' : '🎙'}</Text>
+          <FluentIcon
+            name={isRecording ? 'stop-circle-outline' : 'microphone-outline'}
+            size={21}
+            color={isRecording ? T.color.white : C.primary}
+          />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.sendBtn, (!text.trim()) && styles.sendBtnDisabled]}
           onPress={handleSendText}
           disabled={!text.trim()}
         >
-          <Text style={styles.sendText}>Enviar</Text>
+          <FluentIcon name="send" size={19} color={C.onPrimary} />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-function buildWelcomeText(patientName: string) {
-  return `Olá, ${patientName.split(' ')[0]}! Tudo bem?\nAqui quem fala é o Dr. Helton.\n\nPosso demorar um pouquinho para responder. Mas fique tranquilo(a), já já te respondo pessoalmente.\n\nTudo o que você escrever fica salvo para eu ver com calma.`;
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  list: { padding: 16, gap: 8, flexGrow: 1 },
+  list: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 16, gap: 8, flexGrow: 1 },
   muted: { color: C.muted, textAlign: 'center', marginTop: 8 },
   noticeBanner: {
     backgroundColor: C.warnBg,
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: T.color.separator,
+    borderBottomColor: T.color.border,
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
   },
+  noticeCopy: { flex: 1 },
   noticeText: {
     color: C.warn,
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '700',
     lineHeight: 18,
   },
-  bubble: { maxWidth: '80%', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 4 },
-  bubbleMine: { alignSelf: 'flex-end', backgroundColor: C.bubbleMine },
-  bubbleTheirs: { alignSelf: 'flex-start', backgroundColor: C.bubbleTheirs },
+  noticeDetail: { color: C.muted, fontSize: 11, lineHeight: 16, marginTop: 2 },
+  bubble: { maxWidth: '82%', borderRadius: T.radius.xl, paddingHorizontal: 15, paddingVertical: 11, marginBottom: 4, borderWidth: 1 },
+  bubbleMine: { alignSelf: 'flex-end', backgroundColor: C.bubbleMine, borderColor: T.color.primary },
+  bubbleTheirs: { alignSelf: 'flex-start', backgroundColor: C.surface, borderColor: T.color.border, ...T.shadow.soft },
   bubbleText: { fontSize: 15, color: C.text, lineHeight: 20 },
   bubbleTextMine: { color: C.onPrimary },
   bubbleMeta: { fontSize: 10, color: C.muted, marginTop: 4, textAlign: 'right' },
-  bubbleMetaMine: { color: 'rgba(15,59,65,0.6)' },
+  bubbleMetaMine: { color: 'rgba(255,255,255,0.72)' },
   composer: {
     flexDirection: 'row',
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
     padding: 12,
     gap: 8,
     backgroundColor: C.surface,
     borderTopWidth: 1,
-    borderTopColor: T.color.separator,
+    borderTopColor: T.color.border,
     alignItems: 'flex-end',
   },
   input: {
     flex: 1,
-    backgroundColor: T.color.surfaceMuted,
+    backgroundColor: T.color.surfaceSubtle,
     borderRadius: 22,
     paddingHorizontal: 16,
     paddingVertical: 11,
     fontSize: 15,
     color: C.text,
     maxHeight: 100,
+    borderWidth: 1,
+    borderColor: T.color.border,
   },
   iconBtn: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#EAF4F5',
+    borderRadius: 14,
+    backgroundColor: T.color.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  recordingBtn: { backgroundColor: '#C0392B' },
-  iconText: { fontSize: 18 },
+  recordingBtn: { backgroundColor: T.color.red },
   sendBtn: {
     backgroundColor: C.primary,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sendBtnDisabled: { opacity: 0.5 },
-  sendText: { color: C.onPrimary, fontWeight: '700' },
 });

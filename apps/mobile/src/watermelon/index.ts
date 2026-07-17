@@ -1,8 +1,6 @@
 import { Database } from '@nozbe/watermelondb';
 import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId';
 import { v4 as uuidv4 } from 'uuid';
-import { watermelonSchema } from './schema';
-import { watermelonMigrations } from './migrations';
 import { HeadacheEntry } from './models/HeadacheEntry';
 import { SeizureEntry } from './models/SeizureEntry';
 import { ChatMessage } from './models/ChatMessage';

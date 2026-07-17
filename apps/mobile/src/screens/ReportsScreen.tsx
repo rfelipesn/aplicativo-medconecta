@@ -7,20 +7,21 @@ import type { HeadacheStats } from '@medconecta/shared';
 import { Card } from '../features/headache/components/Card';
 import { BarChart, HBars } from '../features/headache/components/Charts';
 import type { BarDatum } from '../features/headache/components/Charts';
+import { T } from '../theme/tokens';
 
 const C = {
-  primary: '#85B7BF',
-  bg: '#F5F7FA',
-  surface: '#FFFFFF',
-  text: '#333333',
-  muted: '#6B7B8D',
-  leve: '#27AE60',
-  leveBg: '#E6F7ED',
-  moderada: '#E67E22',
-  moderadaBg: '#FFF4E6',
-  severa: '#C0392B',
-  severaBg: '#FDECEA',
-  border: '#DDE3EA',
+  primary: T.color.primary,
+  bg: T.color.bg,
+  surface: T.color.surface,
+  text: T.color.text,
+  muted: T.color.textSecondary,
+  leve: T.color.green,
+  leveBg: T.color.greenSoft,
+  moderada: T.color.orange,
+  moderadaBg: T.color.orangeSoft,
+  severa: T.color.red,
+  severaBg: T.color.redSoft,
+  border: T.color.separator,
 };
 
 const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -200,8 +201,8 @@ export function ReportsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  content: { padding: 16, paddingBottom: 32 },
-  pageTitle: { fontSize: 22, fontWeight: '700', color: C.text },
+  content: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 16, paddingBottom: 32 },
+  pageTitle: { fontSize: 28, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
   subtitle: { fontSize: 13, color: C.muted, marginBottom: 12 },
   center: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   muted: { color: C.muted, fontSize: 13 },
@@ -216,7 +217,7 @@ const styles = StyleSheet.create({
   sevRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   sevBadge: { width: 96, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center' },
   sevBadgeText: { fontSize: 12, fontWeight: '700' },
-  barTrack: { flex: 1, height: 10, backgroundColor: '#EEF1F5', borderRadius: 5 },
+  barTrack: { flex: 1, height: 10, backgroundColor: T.color.surfaceMuted, borderRadius: 5 },
   barFill: { height: 10, borderRadius: 5 },
   sevValue: { width: 44, textAlign: 'right', fontSize: 13, fontWeight: '700', color: C.text },
 });

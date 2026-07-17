@@ -27,7 +27,7 @@ function formatDate(dateStr: string): string {
 
 function BoolBadge({ value, yesLabel = 'Sim', noLabel = 'Não' }: { value: boolean; yesLabel?: string; noLabel?: string }) {
   return (
-    <span style={{ color: value ? '#10b981' : '#ef4444', fontWeight: 500 }}>
+    <span style={{ color: value ? '#34C98E' : '#FF5D5D', fontWeight: 500 }}>
       {value ? yesLabel : noLabel}
     </span>
   );
@@ -135,7 +135,7 @@ export function SeizurePanel({ patientId, patientName }: SeizurePanelProps) {
           <li key={entry.id} className="patient-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
             <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
               <strong>{formatDate(entry.seizureDate)}{entry.seizureTime && ` às ${entry.seizureTime}`}</strong>
-              <span style={{ color: entry.lossOfConsciousness ? '#ef4444' : '#10b981', fontWeight: 600, fontSize: '0.85em' }}>
+              <span style={{ color: entry.lossOfConsciousness ? '#FF5D5D' : '#34C98E', fontWeight: 600, fontSize: '0.85em' }}>
                 {entry.lossOfConsciousness ? 'Perda de consciência' : 'Sem perda de consciência'}
               </span>
             </div>

@@ -1,0 +1,23 @@
+---
+description: Handoff permanente e protocolo de continuidade do MEDconecta no Cursor
+alwaysApply: true
+---
+
+# Handoff de continuidade
+
+Antes de modificar o MEDconecta, leia:
+
+@cursor-handoff/CONTEXTO-MESTRE.md
+@cursor-handoff/ESTADO-E-CONTINUIDADE.md
+@CONTEXTO_ATUAL.md
+@PLANO_MEDCONECTA.md
+
+Regras:
+
+- Preserve todas as alterações rastreadas e não rastreadas do usuário.
+- Consulte o grafo de código conforme `graphify.mdc` antes de explorar implementações.
+- Não exponha secrets nem execute commit, push, migration, deploy ou mutações externas sem pedido explícito.
+- Antes de editar, identifique o fluxo completo e os consumidores afetados.
+- Priorize a conexão paciente → API/Supabase → painel médico → retorno ao paciente.
+- Após editar código, execute as validações pertinentes e atualize o grafo conforme a regra existente.
+- Ao concluir, liste arquivos alterados, testes, riscos restantes e próximo passo.

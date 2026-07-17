@@ -83,8 +83,19 @@ export function Dashboard() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative' }}>
-          <button className="btn-ghost" onClick={() => setShowNotifs((v) => !v)}>
-            {notifsQuery.data?.unreadCount ? `🔔 ${notifsQuery.data.unreadCount}` : '🔔'}
+          <button
+            className="btn-ghost btn-notif"
+            onClick={() => setShowNotifs((v) => !v)}
+            aria-label={
+              notifsQuery.data?.unreadCount
+                ? `${notifsQuery.data.unreadCount} notificações não lidas`
+                : 'Notificações'
+            }
+          >
+            <span className="notif-bell" aria-hidden="true" />
+            {notifsQuery.data?.unreadCount ? (
+              <span className="notif-count">{notifsQuery.data.unreadCount}</span>
+            ) : null}
           </button>
           {showNotifs && (
             <div className="notif-dropdown">
@@ -141,7 +152,7 @@ export function Dashboard() {
 
                 {lastCredentials && (
                   <div className="credentials-box">
-                    <strong>✓ {lastCredentials.name} cadastrado!</strong>
+                    <strong>{lastCredentials.name} cadastrado</strong>
                     <p>Informe ao paciente as credenciais de acesso ao app:</p>
                     <div className="credentials-row">
                       <span className="cred-label">CPF (login):</span>
@@ -279,7 +290,7 @@ export function Dashboard() {
               {selected ? (
                 <>
                   <ChatPanel patientId={selected.id} patientName={selected.user.fullName} />
-                  <RecipesPanel patientId={selected.id} patientName={selected.user.fullName} />
+                  <RecipesPanel patientId={selected.id} patientName={selected.user.fullName} role="doctor" />
                   <ExamsPanel patientId={selected.id} patientName={selected.user.fullName} />
                   <DocumentsPanel patientId={selected.id} patientName={selected.user.fullName} />
                   <HeadachePanel patientId={selected.id} patientName={selected.user.fullName} />
@@ -292,7 +303,7 @@ export function Dashboard() {
                     <h2>Conversa</h2>
                     <p className="muted">Selecione um paciente à esquerda para abrir o chat.</p>
                   </section>
-                  <RecipesPanel patientId={null} />
+                  <RecipesPanel patientId={null} role="doctor" />
                 </>
               )}
             </div>

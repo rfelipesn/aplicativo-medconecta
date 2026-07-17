@@ -1,7 +1,18 @@
 // Web shim for @react-native-async-storage/async-storage — uses localStorage.
+interface StorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+  clear(): void;
+}
+
+function getStorage(): StorageLike | undefined {
+  return (globalThis as unknown as { localStorage?: StorageLike }).localStorage;
+}
+
 export async function getItem(key: string): Promise<string | null> {
   try {
-    return localStorage.getItem(key);
+    return getStorage()?.getItem(key) ?? null;
   } catch {
     return null;
   }
@@ -9,7 +20,7 @@ export async function getItem(key: string): Promise<string | null> {
 
 export async function setItem(key: string, value: string): Promise<void> {
   try {
-    localStorage.setItem(key, value);
+    getStorage()?.setItem(key, value);
   } catch {
     // ignore
   }
@@ -17,7 +28,7 @@ export async function setItem(key: string, value: string): Promise<void> {
 
 export async function removeItem(key: string): Promise<void> {
   try {
-    localStorage.removeItem(key);
+    getStorage()?.removeItem(key);
   } catch {
     // ignore
   }
@@ -45,7 +56,7 @@ export async function multiRemove(keys: string[]): Promise<void> {
 
 export async function clear(): Promise<void> {
   try {
-    localStorage.clear();
+    getStorage()?.clear();
   } catch {
     // ignore
   }

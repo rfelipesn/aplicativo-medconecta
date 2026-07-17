@@ -121,7 +121,7 @@ export function AssistantsPanel() {
 
       {lastCreated && (
         <div className="credentials-box">
-          <strong>✓ {lastCreated.assistant.user.fullName} foi adicionado(a)!</strong>
+          <strong>{lastCreated.assistant.user.fullName} foi adicionado(a)</strong>
           <p>Informe ao assistente as credenciais de acesso ao painel:</p>
           <div className="credentials-row">
             <span className="cred-label">E-mail (login):</span>

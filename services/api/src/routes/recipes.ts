@@ -3,6 +3,7 @@ import { createRecipeRequestInputSchema, BUSINESS_RULES } from '@medconecta/shar
 import { prisma } from '@medconecta/db';
 import { authenticate, resolveChatAccess, getDoctorForRequest } from '../middleware/auth.js';
 import { auditLog, logAssistantAction } from '../lib/audit.js';
+import { createNotification } from '../lib/notifications.js';
 
 function getIp(request: import('fastify').FastifyRequest): string | null {
   return (
@@ -69,6 +70,27 @@ export async function registerRecipeRoutes(app: FastifyInstance) {
         },
       });
 
+      // Notifica o médico (in-app + push) — mesma lógica de demandas.
+      const doctor = await prisma.doctor.findUnique({
+        where: { id: access.doctorId },
+        select: { userId: true },
+      });
+      const patientRow = await prisma.patient.findUnique({
+        where: { id: access.patientId },
+        include: { user: { select: { fullName: true } } },
+      });
+      if (doctor) {
+        const meds = parsed.data.medicationNames.join(', ') || 'medicamento';
+        const body = `${patientRow?.user.fullName ?? 'Paciente'}: ${meds}`.slice(0, 160);
+        await createNotification({
+          userId: doctor.userId,
+          type: 'new_recipe_request',
+          title: 'Nova solicitação de receita',
+          body,
+          relatedDemandId: recipe.id,
+        });
+      }
+
       return reply.code(201).send({ recipe });
     },
   );
@@ -108,6 +130,9 @@ export async function registerRecipeRoutes(app: FastifyInstance) {
 
       const recipe = await prisma.recipeRequest.findUnique({
         where: { id: request.params.recipeId },
+        include: {
+          patient: { select: { userId: true } },
+        },
       });
       if (!recipe) return reply.code(404).send({ error: 'not_found' });
       if (recipe.status !== 'pending') {
@@ -154,6 +179,26 @@ export async function registerRecipeRoutes(app: FastifyInstance) {
           ipAddress: getIp(request),
         });
       }
+
+      // Notifica o paciente (in-app + push) — faltava no fluxo de receitas.
+      const medsPreview = Array.isArray(recipe.medicationNames)
+        ? (recipe.medicationNames as string[]).join(', ')
+        : 'sua receita';
+      // Buscar nome do médico para título mais humano.
+      const doctorRow = await prisma.doctor.findUnique({
+        where: { id: recipe.doctorId },
+        select: { user: { select: { fullName: true } } },
+      });
+      const doctorName = doctorRow?.user?.fullName ?? 'Médico';
+      const recipeTitle = `Dr. ${doctorName} respondeu sua receita`;
+      const recipeBody = `Sua solicitação (${String(medsPreview).slice(0, 80)}) foi marcada como respondida.`;
+      await createNotification({
+        userId: recipe.patient.userId,
+        type: 'recipe_response',
+        title: recipeTitle,
+        body: recipeBody,
+        relatedDemandId: recipe.id,
+      });
 
       return { recipe: updated };
     },

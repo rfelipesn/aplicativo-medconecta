@@ -20,7 +20,6 @@ function detectDevApiUrl(): string {
   // Metro substitui `process.env.EXPO_PUBLIC_API_URL` literalmente durante o build.
   // Guardamos numa const para que a expressão fique como literal-truthy no bundle final
   // (o optional-chaining `?.` do padrão anterior impedia a substituição no check).
-  // @ts-expect-error: process.env é resolvido pelo Metro bundler
   const envUrl = process.env.EXPO_PUBLIC_API_URL as string | undefined;
   if (envUrl) return envUrl;
 

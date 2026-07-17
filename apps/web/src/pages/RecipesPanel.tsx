@@ -4,10 +4,13 @@ import { apiGet, apiPatch, apiPost } from '../lib/api';
 import type { PatientRecipesResponse, RecipesResponse } from '../types';
 
 interface RecipesPanelProps {
-  /** Se fornecido: modo paciente — solicitar + listar receitas do próprio paciente.
-   *  Se null: modo médico — ver todas as receitas pendentes da sua lista. */
+  /** Se fornecido: foca nas receitas deste paciente.
+   *  Se null: modo médico global (todas pendentes). */
   patientId: string | null;
   patientName?: string;
+  /** Papel de quem está vendo. 'patient' mostra formulário de solicitação;
+   *  'doctor' mostra apenas lista + botão de responder. */
+  role: 'patient' | 'doctor';
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -28,7 +31,7 @@ function slaInfo(deadline: string) {
   return h < 24 ? `${h}h restantes` : `${Math.floor(h / 24)}d restantes`;
 }
 
-export function RecipesPanel({ patientId, patientName }: RecipesPanelProps) {
+export function RecipesPanel({ patientId, patientName, role }: RecipesPanelProps) {
   const queryClient = useQueryClient();
   const [medications, setMedications] = useState('');
   const [reason, setReason] = useState('');
@@ -40,13 +43,17 @@ export function RecipesPanel({ patientId, patientName }: RecipesPanelProps) {
     queryKey: ['recipes', 'patient', patientId],
     queryFn: () => apiGet<PatientRecipesResponse>(`/patients/${patientId}/recipes`),
     enabled: !!patientId,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 
-  // Modo médico: lista todas as suas receitas
+  // Modo médico sem paciente selecionado: lista todas as suas receitas pendentes
   const doctorRecipesQuery = useQuery({
     queryKey: ['recipes', 'doctor'],
     queryFn: () => apiGet<RecipesResponse>('/recipes?status=pending'),
-    enabled: !patientId,
+    enabled: !patientId && role === 'doctor',
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 
   const requestRecipe = useMutation({
@@ -91,7 +98,7 @@ export function RecipesPanel({ patientId, patientName }: RecipesPanelProps) {
       </h2>
 
       {/* Formulário de solicitação — só no modo paciente */}
-      {patientId && (
+      {patientId && role === 'patient' && (
         <form
           className="patient-form"
           style={{ marginBottom: 16 }}
@@ -160,8 +167,8 @@ export function RecipesPanel({ patientId, patientName }: RecipesPanelProps) {
             {r.status === 'pending' && (
               <div className="muted small">{slaInfo(r.slaDeadline)}</div>
             )}
-            {/* Médico pode marcar como respondida */}
-            {!patientId && r.status === 'pending' && (
+            {/* Médico pode marcar como respondida (com ou sem paciente selecionado) */}
+            {role === 'doctor' && r.status === 'pending' && (
               <button
                 className="btn-primary"
                 style={{ fontSize: 12, padding: '6px 12px', marginTop: 4 }}

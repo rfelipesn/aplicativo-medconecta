@@ -26,8 +26,8 @@ export function WizardTitle({ before, highlight, after, subtitle }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16 },
-  title: { fontSize: 26, fontWeight: '700', color: HT.text, textAlign: 'center', lineHeight: 32 },
+  wrap: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 18 },
+  title: { fontSize: 27, fontWeight: '800', color: HT.text, textAlign: 'center', lineHeight: 33, letterSpacing: -0.6 },
   highlight: { color: HT.primary },
   subtitle: { fontSize: 14, color: HT.muted, textAlign: 'center', marginTop: 8 },
 });

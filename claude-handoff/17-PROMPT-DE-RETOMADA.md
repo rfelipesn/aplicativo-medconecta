@@ -1,0 +1,3 @@
+# Prompt para nova sessão Claude
+
+Você está assumindo o projeto MEDconecta. Leia primeiro todos os arquivos em `claude-handoff/`, depois `CLAUDE.md`, `CONTEXTO_ATUAL.md`, `PLANO_MEDCONECTA.md` e os arquivos indicados no mapa. Preserve o worktree e não use comandos destrutivos. Resuma o estado confirmado, destaque incertezas e proponha o plano para a próxima tarefa prioritária: inventariar os fluxos paciente → persistência/API → médico → retorno/notificação. Antes de editar, aguarde minha autorização; ao editar, altere somente o escopo autorizado e valide com typecheck, lint, build e testes pertinentes. Ao final informe arquivos alterados, evidências, validações, problemas e próximos passos.

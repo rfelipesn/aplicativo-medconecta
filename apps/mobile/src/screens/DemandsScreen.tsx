@@ -4,6 +4,7 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   StyleSheet,
   Text,
@@ -15,7 +16,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch, apiPost } from '../lib/api';
 import type { Demand, DemandsResponse, MeResponse } from '../types';
 import {
-  DEMAND_TYPES,
   DEMAND_TYPE_LABELS,
   DEMAND_PRIORITY_LABELS,
   DEMAND_STATUS_LABELS,
@@ -23,9 +23,10 @@ import {
 } from '@medconecta/shared';
 
 import { T } from '../theme/tokens';
+import { IconSquircle, type FluentIconName } from '../components/FluentIcon';
 
 const C = {
-  primary: T.color.primary,
+  primary: T.color.primaryStrong,
   onPrimary: T.color.onPrimary,
   bg: T.color.bg,
   surface: T.color.surface,
@@ -33,33 +34,43 @@ const C = {
   muted: T.color.textSecondary,
   border: T.color.separator,
   // status colors
-  openColor: '#2E6B73',
-  openBg: '#EAF4F5',
-  respondedColor: '#1E8449',
-  respondedBg: '#D5F5E3',
-  pendingColor: '#856404',
-  pendingBg: '#FEF3CD',
-  closedColor: '#7F8C8D',
-  closedBg: '#F2F3F4',
+  openColor: T.color.primaryDark,
+  openBg: T.color.primarySoft,
+  respondedColor: '#167D55',
+  respondedBg: T.color.greenSoft,
+  pendingColor: '#9A6118',
+  pendingBg: T.color.orangeSoft,
+  closedColor: T.color.textSecondary,
+  closedBg: T.color.surfaceMuted,
   // priority colors
-  urgentColor: '#C0392B',
-  urgentBg: '#FADBD8',
-  electiveColor: '#2E6B73',
-  electiveBg: '#EAF4F5',
-  informationalColor: '#7F8C8D',
-  informationalBg: '#F2F3F4',
-  otherColor: '#7F8C8D',
-  otherBg: '#F2F3F4',
+  urgentColor: '#AE3030',
+  urgentBg: T.color.redSoft,
+  electiveColor: T.color.primaryDark,
+  electiveBg: T.color.primarySoft,
+  informationalColor: '#2569AE',
+  informationalBg: T.color.blueSoft,
+  otherColor: T.color.textSecondary,
+  otherBg: T.color.surfaceMuted,
 };
 
-const DEMAND_TYPE_ICONS: Record<DemandType, string> = {
-  recipe_renewal: '💊',
-  appointment_request: '📅',
-  exam_result: '🔬',
-  symptom_log: '🩺',
-  general_question: '❓',
-  second_opinion: '👥',
+const DEMAND_TYPE_ICONS: Record<DemandType, FluentIconName> = {
+  recipe_renewal: 'pill',
+  appointment_request: 'calendar-clock-outline',
+  exam_result: 'flask-outline',
+  symptom_log: 'stethoscope',
+  general_question: 'message-question-outline',
+  second_opinion: 'account-group-outline',
 };
+
+/**
+ * Tipos de demanda que o paciente pode criar no app.
+ * "Pergunta geral" e "Segunda opinião" são fluxos internos do médico,
+ * não expostos ao paciente.
+ */
+const PATIENT_DEMAND_TYPES: DemandType[] = [
+  'recipe_renewal',
+  'appointment_request',
+];
 
 function statusColors(status: Demand['status']) {
   switch (status) {
@@ -104,7 +115,7 @@ function DemandCard({
 }) {
   const sColors = statusColors(item.status);
   const typeLabel = DEMAND_TYPE_LABELS[item.type] ?? item.type;
-  const icon = DEMAND_TYPE_ICONS[item.type] ?? '📋';
+  const icon = DEMAND_TYPE_ICONS[item.type] ?? 'clipboard-text-outline';
   const canClose = item.status === 'open' || item.status === 'pending_action';
   const preview =
     (item.title && item.title.trim()) ||
@@ -115,7 +126,7 @@ function DemandCard({
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.typeRow}>
-          <Text style={styles.typeIcon}>{icon}</Text>
+          <IconSquircle name={icon} size={38} />
           <Text style={styles.typeLabel}>{typeLabel}</Text>
         </View>
         <View style={[styles.tag, { backgroundColor: sColors.bg }]}>
@@ -175,7 +186,7 @@ function DemandCard({
 export function DemandsScreen() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const [type, setType] = useState<DemandType>('general_question');
+  const [type, setType] = useState<DemandType>('recipe_renewal');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
@@ -186,21 +197,47 @@ export function DemandsScreen() {
     queryKey: ['demands', patientId],
     queryFn: () => apiGet<DemandsResponse>(`/patients/${patientId}/demands`),
     enabled: !!patientId,
+    // Médico responde em outra sessão; paciente precisa ver status sem reabrir o app.
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      apiPost<{ ok: true; demand: Demand }>('/demands', {
+    mutationFn: async () => {
+      const res = await apiPost<{ ok: true; demand: Demand }>('/demands', {
         type,
         title: title.trim() || undefined,
         description: description.trim(),
-      }),
-    onSuccess: () => {
+      });
+      return res;
+    },
+    onSuccess: (data) => {
       setTitle('');
       setDescription('');
-      setType('general_question');
+      setType('recipe_renewal');
       setShowForm(false);
       queryClient.invalidateQueries({ queryKey: ['demands', patientId] });
+
+      // Para solicitações de agendamento, abre o WhatsApp com mensagem pronta
+      // (se houver número configurado).
+      if (type === 'appointment_request') {
+        const whatsappNumber = process.env.EXPO_PUBLIC_WHATSAPP_NUMBER || '';
+        const patientName = meQuery.data?.user.fullName ?? '';
+        if (whatsappNumber) {
+          const msg = encodeURIComponent(
+            `Olá! Sou ${patientName} e gostaria de agendar uma consulta. (Demanda #${data.demand?.id ?? ''})`,
+          );
+          Linking.openURL(`https://wa.me/${whatsappNumber}?text=${msg}`).catch(() => {
+            /* usuário pode não ter WhatsApp instalado */
+          });
+          Alert.alert(
+            'Demanda enviada',
+            'Sua solicitação foi registrada. Abrindo o WhatsApp para confirmar o agendamento.',
+          );
+          return;
+        }
+      }
+
       Alert.alert('Demanda enviada', 'Sua solicitação foi registrada com sucesso.');
     },
     onError: (err) =>
@@ -256,7 +293,7 @@ export function DemandsScreen() {
               <View style={styles.form}>
                 <Text style={styles.label}>Tipo de solicitação</Text>
                 <View style={styles.chipRow}>
-                  {DEMAND_TYPES.map((t) => {
+                  {PATIENT_DEMAND_TYPES.map((t) => {
                     const active = t === type;
                     return (
                       <TouchableOpacity
@@ -264,13 +301,18 @@ export function DemandsScreen() {
                         style={[styles.chip, active && styles.chipActive]}
                         onPress={() => setType(t)}
                       >
+                        <IconSquircle
+                          name={DEMAND_TYPE_ICONS[t]}
+                          size={20}
+                          color={active ? C.onPrimary : C.primary}
+                        />
                         <Text
                           style={[
                             styles.chipText,
                             active && styles.chipTextActive,
                           ]}
                         >
-                          {DEMAND_TYPE_ICONS[t]} {DEMAND_TYPE_LABELS[t]}
+                          {DEMAND_TYPE_LABELS[t]}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -306,7 +348,7 @@ export function DemandsScreen() {
                   disabled={!canSubmit}
                 >
                   {createMutation.isPending ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={C.onPrimary} />
                   ) : (
                     <Text style={styles.submitBtnText}>Enviar</Text>
                   )}
@@ -340,25 +382,23 @@ export function DemandsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  list: { padding: 16, gap: 12, paddingBottom: 32 },
+  list: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 16, gap: 12, paddingBottom: 32 },
   newBtn: {
     backgroundColor: C.primary,
-    borderRadius: 10,
+    borderRadius: T.radius.md,
     padding: 14,
     alignItems: 'center',
     marginBottom: 16,
   },
   newBtnText: { color: C.onPrimary, fontWeight: '700', fontSize: 15 },
   form: {
-    backgroundColor: C.surface,
-    borderRadius: 16,
+    backgroundColor: T.color.acrylicStrong,
+    borderRadius: T.radius.lg,
     padding: 16,
     marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1,
+    borderColor: T.color.border,
+    ...T.shadow.card,
   },
   label: { fontSize: 13, color: C.muted, marginBottom: 6, marginTop: 4 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
@@ -368,7 +408,10 @@ const styles = StyleSheet.create({
     borderRadius: 99,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: C.surface,
+    backgroundColor: T.color.surfaceSubtle,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   chipActive: { backgroundColor: C.primary, borderColor: C.primary },
   chipText: { fontSize: 13, color: C.text, fontWeight: '500' },
@@ -376,30 +419,29 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: C.border,
-    borderRadius: 10,
+    borderRadius: T.radius.md,
     padding: 12,
     fontSize: 14,
     color: C.text,
     marginBottom: 14,
+    backgroundColor: T.color.surfaceSubtle,
   },
   textArea: { minHeight: 96, paddingTop: 12 },
   submitBtn: {
     backgroundColor: C.primary,
-    borderRadius: 10,
+    borderRadius: T.radius.md,
     padding: 14,
     alignItems: 'center',
   },
   submitBtnText: { color: C.onPrimary, fontWeight: '700' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: C.text, marginBottom: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: C.text, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: T.color.primary, paddingLeft: 8 },
   card: {
-    backgroundColor: C.surface,
-    borderRadius: 14,
+    backgroundColor: T.color.acrylicStrong,
+    borderRadius: T.radius.lg,
     padding: 16,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
+    borderWidth: 1,
+    borderColor: T.color.border,
+    ...T.shadow.soft,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -408,13 +450,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   typeRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  typeIcon: { fontSize: 18, marginRight: 6 },
-  typeLabel: { fontSize: 13, color: C.muted, fontWeight: '500' },
+  typeLabel: { fontSize: 13, color: C.text, fontWeight: '700', marginLeft: 9 },
   cardTitle: { fontSize: 15, fontWeight: '600', color: C.text, marginBottom: 4 },
   cardDesc: { fontSize: 13, color: C.muted, marginBottom: 8 },
   responseBox: {
     backgroundColor: C.respondedBg,
-    borderRadius: 10,
+    borderRadius: T.radius.md,
     padding: 10,
     marginBottom: 8,
     borderLeftWidth: 3,

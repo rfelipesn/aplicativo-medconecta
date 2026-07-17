@@ -8,6 +8,7 @@ import { listHeadacheEntries } from '../features/headache/api';
 import type { HeadacheEntry } from '../features/headache/types';
 import type { MainStackParamList } from '../navigation/types';
 import { T } from '../theme/tokens';
+import { FluentIcon } from '../components/FluentIcon';
 
 const SEV = {
   leve: T.color.green,
@@ -117,6 +118,7 @@ export function DiaryDashboardScreen() {
           onPress={() => navigation.navigate('RegisterCrisis')}
           activeOpacity={0.85}
         >
+          <FluentIcon name="lightning-bolt-outline" size={19} color={T.color.white} />
           <Text style={styles.primaryBtnText}>+ Nova crise</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -124,6 +126,7 @@ export function DiaryDashboardScreen() {
           onPress={() => navigation.navigate('Reports')}
           activeOpacity={0.7}
         >
+          <FluentIcon name="chart-box-outline" size={19} color={T.color.primaryStrong} />
           <Text style={styles.secondaryBtnText}>Relatórios</Text>
         </TouchableOpacity>
       </View>
@@ -155,7 +158,7 @@ export function DiaryDashboardScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.color.bg },
-  headerRow: { paddingHorizontal: T.space.md, paddingTop: T.space.md, paddingBottom: 4 },
+  headerRow: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: T.space.md, paddingTop: T.space.lg, paddingBottom: 4 },
   headerTitle: { fontSize: T.font.largeTitle, fontWeight: '800', color: T.color.text, letterSpacing: -0.5 },
   headerSubtitle: { fontSize: T.font.subhead, color: T.color.textSecondary, marginTop: 2 },
   actionsRow: {
@@ -163,27 +166,38 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: T.space.md,
     paddingVertical: T.space.md,
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
   },
   primaryBtn: {
     flex: 1,
-    backgroundColor: T.color.primary,
-    borderRadius: T.radius.pill,
+    backgroundColor: T.color.primaryStrong,
+    borderRadius: T.radius.lg,
     paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
     ...T.shadow.soft,
   },
-  primaryBtnText: { color: T.color.onPrimary, fontWeight: '700', fontSize: T.font.body },
+  primaryBtnText: { color: T.color.white, fontWeight: '700', fontSize: T.font.body },
   secondaryBtn: {
     flex: 1,
     backgroundColor: T.color.primarySoft,
-    borderRadius: T.radius.pill,
+    borderRadius: T.radius.lg,
     paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: T.color.border,
   },
   secondaryBtnText: { color: T.color.primaryDark, fontWeight: '700', fontSize: T.font.body },
   loader: { marginVertical: 16 },
   errorText: { color: SEV.severa, textAlign: 'center', marginTop: 16, paddingHorizontal: 16 },
-  list: { paddingHorizontal: T.space.md, paddingBottom: 32, gap: 12 },
+  list: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: T.space.md, paddingBottom: 32, gap: 12 },
   emptyContainer: { flex: 1, justifyContent: 'center', padding: 24 },
   emptyText: { color: T.color.textSecondary, textAlign: 'center', fontSize: T.font.body },
   card: {
@@ -191,6 +205,8 @@ const styles = StyleSheet.create({
     borderRadius: T.radius.lg,
     padding: T.space.md,
     ...T.shadow.soft,
+    borderWidth: 1,
+    borderColor: T.color.border,
   },
   cardHeader: {
     flexDirection: 'row',

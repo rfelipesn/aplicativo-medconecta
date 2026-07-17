@@ -22,11 +22,11 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
 };
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
-  headache: '#1B5FA8',
-  seizure: '#C0392B',
-  sleep: '#6B7B8D',
-  symptom: '#E67E22',
-  other: '#7F8C8D',
+  headache: '#4E8E99',
+  seizure: '#9D7BFF',
+  sleep: '#6B7F84',
+  symptom: '#FF9F45',
+  other: '#85B7BF',
 };
 
 const WEEKDAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -53,7 +53,19 @@ export function HealthEventPanel({ patientId, patientName }: HealthEventPanelPro
   const [eventType, setEventType] = useState<CreateHealthEventInput['eventType']>('symptom');
   const [description, setDescription] = useState('');
   const [eventDate, setEventDate] = useState(() => toLocalDatetimeInput(new Date()));
+  const [whenMode, setWhenMode] = useState<'today' | 'yesterday' | 'custom'>('today');
   const [formError, setFormError] = useState<string | null>(null);
+
+  function applyWhen(mode: 'today' | 'yesterday' | 'custom') {
+    setWhenMode(mode);
+    if (mode === 'today') {
+      setEventDate(toLocalDatetimeInput(new Date()));
+    } else if (mode === 'yesterday') {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      setEventDate(toLocalDatetimeInput(d));
+    }
+  }
 
   const eventsQuery = useQuery({
     queryKey: ['health-events', patientId],
@@ -140,7 +152,7 @@ export function HealthEventPanel({ patientId, patientName }: HealthEventPanelPro
                     key={t.type}
                     className="tag"
                     style={{
-                      backgroundColor: '#EEF1F5',
+                      backgroundColor: '#E8F2F3',
                       color: EVENT_TYPE_COLORS[t.type] ?? '#333',
                     }}
                   >
@@ -163,7 +175,7 @@ export function HealthEventPanel({ patientId, patientName }: HealthEventPanelPro
       {showForm && (
         <form
           className="patient-form"
-          style={{ marginBottom: 16, padding: 12, background: '#F5F7FA', borderRadius: 8 }}
+          style={{ marginBottom: 16, padding: 12, background: '#F0F6F7', borderRadius: 14 }}
           onSubmit={handleSubmit}
         >
           <div className="row">
@@ -180,12 +192,43 @@ export function HealthEventPanel({ patientId, patientName }: HealthEventPanelPro
             </label>
             <label>
               Quando
-              <input
-                type="datetime-local"
-                value={eventDate}
-                onChange={(e) => setEventDate(e.target.value)}
-                required
-              />
+              <div className="filter-group" style={{ gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className={whenMode === 'today' ? 'btn-primary small' : 'btn-ghost small'}
+                  onClick={() => applyWhen('today')}
+                >
+                  Hoje
+                </button>
+                <button
+                  type="button"
+                  className={whenMode === 'yesterday' ? 'btn-primary small' : 'btn-ghost small'}
+                  onClick={() => applyWhen('yesterday')}
+                >
+                  Ontem
+                </button>
+                <button
+                  type="button"
+                  className={whenMode === 'custom' ? 'btn-primary small' : 'btn-ghost small'}
+                  onClick={() => applyWhen('custom')}
+                >
+                  Escolher data
+                </button>
+              </div>
+              {whenMode === 'custom' && (
+                <input
+                  type="datetime-local"
+                  value={eventDate}
+                  onChange={(e) => setEventDate(e.target.value)}
+                  required
+                  style={{ marginTop: 6, width: '100%' }}
+                />
+              )}
+              {whenMode !== 'custom' && (
+                <div className="muted small" style={{ marginTop: 4 }}>
+                  {formatDateTime(new Date(eventDate).toISOString())}
+                </div>
+              )}
             </label>
           </div>
           <label>
@@ -229,7 +272,7 @@ export function HealthEventPanel({ patientId, patientName }: HealthEventPanelPro
               <span
                 className="tag"
                 style={{
-                  backgroundColor: '#EEF1F5',
+                  backgroundColor: '#E8F2F3',
                   color: EVENT_TYPE_COLORS[event.eventType] ?? '#333',
                 }}
               >

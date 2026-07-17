@@ -16,15 +16,18 @@ export async function createSignedUploadUrl(
   bucket: string,
   path: string,
 ): Promise<{ signedUrl: string; token: string }> {
-  // Supabase Storage requer Content-Type: application/json com body não-vazio.
+  // Supabase Storage exige `expiresIn` no body do sign-upload.
   const res = await fetch(`${base()}/object/sign/upload/${bucket}/${path}`, {
     method: 'POST',
     headers: adminHeaders(),
-    body: '{}',
+    body: JSON.stringify({ expiresIn: 3600 }),
   });
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    throw new Error((err.message as string) ?? `Storage sign-upload failed: ${res.status}`);
+    const detail = (err.message as string) ?? res.status;
+    throw new Error(
+      `Storage upload failed — bucket:${bucket} path:${path} — ${detail}`,
+    );
   }
   return res.json() as Promise<{ signedUrl: string; token: string }>;
 }
@@ -42,7 +45,10 @@ export async function createSignedDownloadUrl(
   });
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    throw new Error((err.message as string) ?? `Storage sign-download failed: ${res.status}`);
+    const detail = (err.message as string) ?? res.status;
+    throw new Error(
+      `Storage download failed — bucket:${bucket} path:${path} — ${detail}`,
+    );
   }
   const data = (await res.json()) as { signedUrl: string };
   return data.signedUrl;

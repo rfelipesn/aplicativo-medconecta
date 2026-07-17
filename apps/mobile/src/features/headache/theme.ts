@@ -1,42 +1,39 @@
 /**
- * Tema do módulo Diário de Cefaleia.
- *
- * Paleta OFICIAL do MEDconecta: branco + teal #85B7BF (RGB 133,183,191).
- * Como o teal é claro, botões preenchidos usam texto ESCURO (`onPrimary`)
- * para garantir contraste/legibilidade.
- *
- * Os tons "primaryMid/primaryLight" são derivados do teal primário para os
- * gráficos de severidade e para o círculo de intensidade animado.
+ * Tema do módulo Diário de Cefaleia — alinhado ao Fluent Accent (tokens T).
  */
+import { T } from '../../theme/tokens';
+
 export const HT = {
-  primary: '#85B7BF',
-  primaryMid: '#5E9AA3',
-  primaryLight: '#B3D4D9',
-  primarySoft: '#EAF4F5',
+  primary: T.color.primaryStrong,
+  primaryMid: T.color.primary,
+  primaryLight: T.color.primaryMid,
+  primarySoft: T.color.primarySoft,
 
-  // Texto/ícone escuro para uso SOBRE o teal (botões cheios, destaques).
-  onPrimary: '#0F3B41',
-  primaryDark: '#2E6B73',
+  onPrimary: T.color.onPrimary,
+  primaryDark: T.color.primaryDark,
 
-  screenBg: '#F5F7FA',
-  wizardBg: '#FFFFFF',
-  surface: '#FFFFFF',
-  surfaceMuted: '#EEF1F5',
+  screenBg: T.color.bg,
+  wizardBg: T.color.surface,
+  surface: T.color.surface,
+  surfaceMuted: T.color.surfaceMuted,
 
-  text: '#333333',
-  muted: '#6B7B8D',
-  mutedLight: '#B6C0CC',
+  text: T.color.text,
+  muted: T.color.textTertiary,
+  mutedLight: '#A4B9BD',
 
-  border: '#DDE3EA',
-  borderActive: '#85B7BF',
+  border: T.color.separator,
+  borderActive: T.color.primary,
 
-  // Cores auxiliares para gráficos (família teal, on-brand).
-  chartStrong: '#4E8A93',
-  chartMid: '#7FB0B8',
-  chartLight: '#CFE3E6',
+  chartStrong: T.color.primaryStrong,
+  chartMid: T.color.primary,
+  chartLight: '#D7ECEE',
 
-  success: '#1E8449',
-  white: '#FFFFFF',
+  success: T.color.green,
+  white: T.color.white,
+  orange: T.color.orange,
+  purple: T.color.purple,
+  blue: T.color.blue,
+  red: T.color.red,
 } as const;
 
 /** Interpola dois hex (#RRGGBB) por t∈[0,1]. */

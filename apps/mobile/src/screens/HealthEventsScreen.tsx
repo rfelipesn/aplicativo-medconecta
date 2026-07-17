@@ -24,15 +24,16 @@ import type {
   HealthEventType,
   MeResponse,
 } from '../types';
+import { T } from '../theme/tokens';
 
 const C = {
-  primary: '#85B7BF',
-  onPrimary: '#0F3B41',
-  bg: '#F5F7FA',
-  surface: '#FFFFFF',
-  text: '#333333',
-  muted: '#6B7B8D',
-  border: '#DDE3EA',
+  primary: T.color.primaryStrong,
+  onPrimary: T.color.onPrimary,
+  bg: T.color.bg,
+  surface: T.color.surface,
+  text: T.color.text,
+  muted: T.color.textSecondary,
+  border: T.color.separator,
 } as const;
 
 const EVENT_TYPE_LABELS: Record<HealthEventType, string> = {
@@ -44,11 +45,11 @@ const EVENT_TYPE_LABELS: Record<HealthEventType, string> = {
 };
 
 const EVENT_TYPE_COLORS: Record<HealthEventType, string> = {
-  headache: '#2E6B73',
-  seizure: '#C0392B',
-  sleep: '#6B7B8D',
-  symptom: '#E67E22',
-  other: '#7F8C8D',
+  headache: T.color.primaryStrong,
+  seizure: T.color.red,
+  sleep: T.color.purple,
+  symptom: T.color.orange,
+  other: T.color.textSecondary,
 };
 
 const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -249,7 +250,7 @@ export function HealthEventsScreen() {
         </ScrollView>
 
         {stats && (
-          <Card title="Resumo do período" icon="📊">
+          <Card title="Resumo do período" icon="chart-bar">
             <View style={styles.statRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{stats.totals.count}</Text>
@@ -270,7 +271,7 @@ export function HealthEventsScreen() {
         )}
 
         {stats && (
-          <Card title="Distribuição por tipo" icon="🏷️">
+          <Card title="Distribuição por tipo" icon="tag-outline">
             {typeBars.length > 0 ? (
               <HBars data={typeBars} color={C.primary} />
             ) : (
@@ -280,13 +281,13 @@ export function HealthEventsScreen() {
         )}
 
         {stats && (
-          <Card title="Dias da semana" icon="📅">
+          <Card title="Dias da semana" icon="calendar-week">
             <BarChart data={weekdayData} height={100} />
           </Card>
         )}
 
         {stats && topDescriptions.length > 0 && (
-          <Card title="Anotações mais frequentes" icon="🔁">
+          <Card title="Anotações mais frequentes" icon="repeat">
             <HBars data={topDescriptions} color={C.primary} />
           </Card>
         )}
@@ -428,9 +429,9 @@ export function HealthEventsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   scroll: { flex: 1 },
-  content: { padding: 16, paddingBottom: 96 },
+  content: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 16, paddingBottom: 96 },
   center: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  pageTitle: { fontSize: 22, fontWeight: '700', color: C.text },
+  pageTitle: { fontSize: 28, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
   subtitle: { fontSize: 13, color: C.muted, marginBottom: 12 },
   muted: { color: C.muted, fontSize: 13 },
   sectionTitle: {
@@ -472,11 +473,12 @@ const styles = StyleSheet.create({
   divider: { width: 1, height: 36, backgroundColor: C.border },
   eventCard: {
     backgroundColor: C.surface,
-    borderRadius: 12,
+    borderRadius: T.radius.xl,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#EEF1F5',
+    borderColor: T.color.border,
+    ...T.shadow.soft,
   },
   eventHeader: {
     flexDirection: 'row',

@@ -1,6 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Text } from 'react-native';
 import { HomeScreen } from '../screens/HomeScreen';
 import { ChatScreen } from '../screens/ChatScreen';
 import { RecipesScreen } from '../screens/RecipesScreen';
@@ -19,6 +18,8 @@ import { apiGet } from '../lib/api';
 import type { MeResponse, NotificationsResponse } from '../types';
 import { useWatermelonSync } from '../watermelon/useWatermelonSync';
 import type { MainStackParamList } from './types';
+import { T } from '../theme/tokens';
+import { FluentIcon, type FluentIconName } from '../components/FluentIcon';
 
 const Tab = createBottomTabNavigator<{
   Início: undefined;
@@ -28,17 +29,19 @@ const Tab = createBottomTabNavigator<{
 }>();
 const Stack = createNativeStackNavigator<MainStackParamList>();
 
-const TAB_ICONS: Record<string, string> = {
-  Início: '🏠',
-  Chat: '💬',
-  Receitas: '📋',
-  Notificações: '🔔',
+const TAB_ICONS: Record<string, FluentIconName> = {
+  Início: 'home-outline',
+  Chat: 'message-text-outline',
+  Receitas: 'file-document-outline',
+  Notificações: 'bell-outline',
 };
 
 const HEADER_OPTS = {
-  headerStyle: { backgroundColor: '#85B7BF' },
-  headerTintColor: '#0F3B41',
-  headerTitleStyle: { fontWeight: '700' as const },
+  headerStyle: { backgroundColor: T.color.acrylicStrong },
+  headerTintColor: T.color.primaryDark,
+  headerTitleStyle: { fontWeight: '800' as const, fontSize: 17, color: T.color.primaryDark },
+  headerShadowVisible: false,
+  headerBackTitleVisible: false,
 };
 
 function RootTabs() {
@@ -55,18 +58,43 @@ function RootTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarIcon: () => (
-          <Text style={{ fontSize: 20 }}>
-            {TAB_ICONS[route.name] ?? '•'}
-          </Text>
+        tabBarIcon: ({ focused, color }) => (
+          <FluentIcon
+            name={TAB_ICONS[route.name] ?? 'circle-outline'}
+            size={22}
+            color={focused ? T.color.white : color}
+          />
         ),
         tabBarLabel: route.name,
-        tabBarActiveTintColor: '#2E6B73',
-        tabBarInactiveTintColor: '#6B7B8D',
+        tabBarInactiveTintColor: T.color.textTertiary,
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginBottom: 2 },
+        tabBarItemStyle: { borderRadius: 18, marginHorizontal: 4, marginVertical: 7 },
+        tabBarActiveTintColor: T.color.onPrimary,
+        tabBarActiveBackgroundColor: T.color.primaryStrong,
+        tabBarStyle: {
+          height: 76,
+          paddingHorizontal: 8,
+          backgroundColor: T.color.acrylicStrong,
+          borderTopColor: T.color.border,
+          borderTopWidth: 1,
+          elevation: 12,
+          shadowColor: T.color.primaryDark,
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: -4 },
+        },
+        tabBarBadgeStyle: {
+          backgroundColor: T.color.red,
+          color: T.color.onPrimary,
+          fontWeight: '800',
+          borderWidth: 2,
+          borderColor: T.color.white,
+        },
+        tabBarHideOnKeyboard: true,
         ...HEADER_OPTS,
       })}
     >
-      <Tab.Screen name="Início" component={HomeScreen} />
+      <Tab.Screen name="Início" component={HomeScreen} options={{ headerShown: false }} />
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Receitas" component={RecipesScreen} />
       <Tab.Screen

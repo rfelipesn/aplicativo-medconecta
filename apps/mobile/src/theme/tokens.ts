@@ -1,74 +1,97 @@
 /**
- * Design tokens do MEDconecta (app do paciente).
+ * MEDconecta — Fluent Accent tokens (app do paciente).
  *
- * Estética inspirada em apps de saúde premium estilo iOS/Apple Health:
- * branco quente, cartões muito arredondados, sombras suaves, ícones
- * coloridos por categoria e tipografia limpa. A cor de marca é o teal
- * #85B7BF (RGB 133,183,191); sobre teal usamos texto ESCURO (`onPrimary`).
- *
- * Reutilizável entre telas — importe `T` e use os tokens em vez de
- * hardcodar cores/raios/sombras.
+ * Fonte de verdade: mockup "Mockup L — Fluent Accent" + DESIGN.md.
+ * Superfícies claras, azul-petróleo, cartões acrylic, acentos laranja/lilás.
  */
 export const T = {
   color: {
-    // Fundos
-    bg: '#F6F7F4', // branco quente / off-white
+    bg: '#F0F6F7',
     surface: '#FFFFFF',
-    surfaceMuted: '#F1F3F0',
+    surfaceMuted: '#E8F2F3',
+    surfaceSubtle: '#F7FAFA',
+    acrylic: 'rgba(255,255,255,0.82)',
+    acrylicStrong: 'rgba(255,255,255,0.94)',
 
-    // Texto (escala tipo iOS)
-    text: '#1C1C1E',
-    textSecondary: '#6B7280',
-    textTertiary: '#9AA2AC',
+    text: '#1A2A2D',
+    textSecondary: '#52666B',
+    textTertiary: '#6B7F84',
 
-    separator: '#ECEEEA',
+    separator: '#D8E7E9',
+    border: 'rgba(133,183,191,0.30)',
+    reveal: 'rgba(133,183,191,0.30)',
+    overlay: 'rgba(15,59,65,0.42)',
 
-    // Marca (teal)
     primary: '#85B7BF',
-    primaryDark: '#2E6B73',
-    onPrimary: '#0F3B41',
-    primarySoft: '#E9F3F4',
+    primaryStrong: '#4E8E99',
+    primaryDark: '#0F3B41',
+    primarySoft: '#E8F2F3',
+    primaryMid: '#B7D7DB',
+    /** Texto sobre botão primaryStrong (teal saturado). */
+    onPrimary: '#FFFFFF',
+    /** Texto sobre primary claro (#85B7BF). */
+    onPrimarySoft: '#0F3B41',
 
-    // Acentos por categoria (harmonizados com o teal)
-    red: '#E9756B',
-    redSoft: '#FCECEA',
-    orange: '#E8A15C',
-    orangeSoft: '#FBF0E2',
-    teal: '#5AA0A8',
-    tealSoft: '#E4F1F2',
-    purple: '#9C8BC4',
-    purpleSoft: '#F0ECF8',
-    green: '#5FAE86',
-    greenSoft: '#E6F4EC',
-    blue: '#6FA0CC',
-    blueSoft: '#EAF1F8',
+    red: '#FF5D5D',
+    redSoft: '#FFE9E9',
+    orange: '#FF9F45',
+    orangeSoft: '#FFF0E1',
+    teal: '#4E8E99',
+    tealSoft: '#E8F2F3',
+    purple: '#9D7BFF',
+    purpleSoft: '#F0ECFF',
+    green: '#34C98E',
+    greenSoft: '#E4F8F0',
+    blue: '#4E9EF5',
+    blueSoft: '#E7F2FF',
     white: '#FFFFFF',
+
+    glass: 'rgba(255,255,255,0.18)',
+    glassBorder: 'rgba(255,255,255,0.26)',
+    glassText: 'rgba(255,255,255,0.88)',
   },
-  radius: { sm: 12, md: 16, lg: 22, xl: 28, pill: 999 },
-  space: { xs: 6, sm: 10, md: 16, lg: 20, xl: 28 },
+  radius: { xs: 8, sm: 12, md: 14, lg: 16, xl: 22, xxl: 28, pill: 999 },
+  space: { xxs: 4, xs: 6, sm: 10, md: 16, lg: 20, xl: 28, xxl: 36 },
   font: {
-    largeTitle: 30,
+    largeTitle: 28,
     title: 22,
     headline: 17,
     body: 15,
     subhead: 13,
     caption: 11,
   },
-  /** Sombra suave e discreta para cartões elevados. */
+  family: {
+    regular: 'Segoe UI',
+    display: 'Segoe UI',
+  },
   shadow: {
     card: {
-      shadowColor: '#1C1C1E',
-      shadowOpacity: 0.06,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 2,
+      shadowColor: '#0F3B41',
+      shadowOpacity: 0.11,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 4,
     },
     soft: {
-      shadowColor: '#1C1C1E',
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
+      shadowColor: '#0F3B41',
+      shadowOpacity: 0.07,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 3 },
       elevation: 1,
     },
+    floating: {
+      shadowColor: '#0F3B41',
+      shadowOpacity: 0.18,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 12 },
+      elevation: 8,
+    },
+  },
+  gradient: {
+    header: ['#4E8E99', '#85B7BF', '#E8F2F3'] as const,
+    hero: ['#4E8E99', '#85B7BF'] as const,
+    tabActive: ['#85B7BF', '#4E8E99'] as const,
   },
 } as const;
+
+export type Tokens = typeof T;

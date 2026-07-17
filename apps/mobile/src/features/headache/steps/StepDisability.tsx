@@ -31,12 +31,11 @@ export function StepDisability({ draft, update }: StepProps) {
         before="Como a Dor de Cabeça "
         highlight="Afetou"
         after=" suas Atividades?"
-        subtitle="Questionário MIDAS ⓘ"
+        subtitle="Questionário MIDAS"
       />
       <ScrollView contentContainerStyle={styles.content}>
         <ListSelectItem
           label={notAffected.label}
-          icon={notAffected.icon}
           selected={selected.includes(NOT_AFFECTED)}
           onPress={() => onToggle(NOT_AFFECTED)}
         />
@@ -46,7 +45,6 @@ export function StepDisability({ draft, update }: StepProps) {
           <ListSelectItem
             key={o.id}
             label={o.label}
-            icon={o.icon}
             selected={selected.includes(o.id)}
             onPress={() => onToggle(o.id)}
           />
@@ -57,7 +55,6 @@ export function StepDisability({ draft, update }: StepProps) {
           <ListSelectItem
             key={o.id}
             label={o.label}
-            icon={o.icon}
             selected={selected.includes(o.id)}
             onPress={() => onToggle(o.id)}
           />

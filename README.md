@@ -5,7 +5,8 @@ Comunicação paciente-médico, diários clínicos (cefaleia/epilepsia), registr
 e upload de documentos. Inicia com 1 médico (Dr. Helton Bruno) e escala para múltiplos médicos.
 
 > Documentação oficial e fonte única de verdade do projeto:
-> `.cursor/plans/medconecta_-_arquitetura_completa_ece95dfa.plan.md`
+> `PLANO_MEDCONECTA.md` (o plano anterior, do Cursor, foi perdido por nunca ter sido
+> versionado neste repositório)
 
 ## Pilares de arquitetura
 

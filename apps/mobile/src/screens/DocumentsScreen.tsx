@@ -21,9 +21,10 @@ import type {
 } from '../types';
 
 import { T } from '../theme/tokens';
+import { FluentIcon, IconSquircle, type FluentIconName } from '../components/FluentIcon';
 
 const C = {
-  primary: T.color.primary,
+  primary: T.color.primaryStrong,
   onPrimary: T.color.onPrimary,
   bg: T.color.bg,
   surface: T.color.surface,
@@ -36,12 +37,12 @@ const C = {
   patientBg: T.color.surfaceMuted,
 };
 
-const DOCUMENT_META: Record<DocumentKind, { label: string; icon: string }> = {
-  recipe: { label: 'Receita', icon: '📋' },
-  exam_result: { label: 'Resultado de exame', icon: '🔬' },
-  prescription: { label: 'Prescrição', icon: '💊' },
-  report: { label: 'Laudo', icon: '📄' },
-  other: { label: 'Outro', icon: '📁' },
+const DOCUMENT_META: Record<DocumentKind, { label: string; icon: FluentIconName; color: string; soft: string }> = {
+  recipe: { label: 'Receita', icon: 'file-document-outline', color: T.color.green, soft: T.color.greenSoft },
+  exam_result: { label: 'Resultado de exame', icon: 'flask-outline', color: T.color.blue, soft: T.color.blueSoft },
+  prescription: { label: 'Prescrição', icon: 'pill', color: T.color.purple, soft: T.color.purpleSoft },
+  report: { label: 'Laudo', icon: 'clipboard-text-outline', color: T.color.orange, soft: T.color.orangeSoft },
+  other: { label: 'Outro', icon: 'folder-outline', color: T.color.primaryStrong, soft: T.color.primarySoft },
 };
 
 function formatBytes(bytes: number): string {
@@ -67,7 +68,9 @@ function DocumentCard({
 }) {
   const meta = DOCUMENT_META[item.documentType] ?? {
     label: item.documentType,
-    icon: '📁',
+    icon: 'folder-outline' as FluentIconName,
+    color: T.color.primaryStrong,
+    soft: T.color.primarySoft,
   };
   const isDoctor = item.uploadedByDoctor;
   const tagColor = isDoctor ? C.doctorColor : C.patientColor;
@@ -77,7 +80,7 @@ function DocumentCard({
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.typeRow}>
-          <Text style={styles.typeIcon}>{meta.icon}</Text>
+          <IconSquircle name={meta.icon} color={meta.color} backgroundColor={meta.soft} size={42} />
           <Text style={styles.typeLabel}>{meta.label}</Text>
         </View>
         <TouchableOpacity
@@ -89,7 +92,10 @@ function DocumentCard({
           {downloading ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <Text style={styles.downloadBtnText}>Baixar</Text>
+            <View style={styles.downloadContent}>
+              <FluentIcon name="download-outline" size={15} color={T.color.white} />
+              <Text style={styles.downloadBtnText}>Baixar</Text>
+            </View>
           )}
         </TouchableOpacity>
       </View>
@@ -125,6 +131,8 @@ export function DocumentsScreen() {
     queryFn: () =>
       apiGet<DocumentsResponse>(`/patients/${patientId}/documents`),
     enabled: !!patientId,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 
   async function handleDownload(documentId: string) {
@@ -173,9 +181,8 @@ export function DocumentsScreen() {
       }
       ListHeaderComponent={
         <View>
-          <Text style={styles.sectionTitle}>
-            Documentos {documents.length > 0 ? `(${documents.length})` : ''}
-          </Text>
+          <View style={styles.pageEyebrow}><View style={styles.pageAccent} /><Text style={styles.pageEyebrowText}>ARQUIVOS DE SAÚDE</Text></View>
+          <Text style={styles.sectionTitle}>Seus documentos {documents.length > 0 ? `(${documents.length})` : ''}</Text>
           <Text style={styles.sectionHint}>
             Receitas, prescrições, laudos e resultados de exame enviados pelo seu
             médico. Toque em "Baixar" para abrir o arquivo.
@@ -207,18 +214,19 @@ export function DocumentsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  list: { padding: 16, gap: 12, paddingBottom: 32 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: C.text, marginBottom: 4 },
-  sectionHint: { fontSize: 13, color: C.muted, marginBottom: 12 },
+  list: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 16, gap: 12, paddingBottom: 32 },
+  pageEyebrow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 5 },
+  pageAccent: { width: 22, height: 3, borderRadius: 2, backgroundColor: T.color.primary },
+  pageEyebrowText: { color: T.color.primaryStrong, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  sectionTitle: { fontSize: 23, fontWeight: '800', color: C.text, marginBottom: 4, letterSpacing: -0.4 },
+  sectionHint: { fontSize: 12.5, color: C.muted, lineHeight: 18, marginBottom: 12 },
   card: {
-    backgroundColor: C.surface,
-    borderRadius: 14,
+    backgroundColor: T.color.acrylicStrong,
+    borderRadius: T.radius.lg,
     padding: 16,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
+    borderWidth: 1,
+    borderColor: T.color.border,
+    ...T.shadow.soft,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -228,17 +236,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   typeRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  typeIcon: { fontSize: 20, marginRight: 8 },
-  typeLabel: { fontSize: 15, color: C.text, fontWeight: '600' },
+  typeLabel: { fontSize: 15, color: C.text, fontWeight: '700', marginLeft: 10 },
   downloadBtn: {
     backgroundColor: C.primary,
-    borderRadius: 8,
+    borderRadius: T.radius.sm,
     paddingHorizontal: 14,
     paddingVertical: 8,
     minWidth: 80,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  downloadContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   downloadBtnText: { color: C.onPrimary, fontWeight: '700', fontSize: 13 },
   fileName: { fontSize: 14, color: C.text, marginBottom: 4 },
   metaText: { fontSize: 12, color: C.muted, marginBottom: 8 },

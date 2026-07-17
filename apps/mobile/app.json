@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "backgroundColor": "#1B5FA8"
+      "backgroundColor": "#4E8E99"
     },
     "ios": {
       "supportsTablet": true,
@@ -39,7 +39,7 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#1B5FA8"
+          "color": "#4E8E99"
         }
       ]
     ],
@@ -47,10 +47,13 @@
       "bundler": "metro",
       "output": "single"
     },
+    "experiments": {
+      "baseUrl": "/app"
+    },
     "extra": {
       "supabaseUrl": "https://jrhsugwodskbmoztqvds.supabase.co",
       "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpyaHN1Z3dvZHNrYm1venRxdmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MzY5NTIsImV4cCI6MjA5NzMxMjk1Mn0.5eefkQ279akjsnv9vpZyPUPZmiNvbdSwZaaS7g-gvfE",
-      "apiUrl": "https://medconectaapi-production.up.railway.app"
+      "apiUrl": "https://medconecta.173-212-230-29.sslip.io/api"
     }
   }
 }
