@@ -430,7 +430,6 @@ model Demand {
 
   patient       Patient        @relation(fields: [patientId], references: [id])
   doctor        Doctor         @relation(fields: [doctorId], references: [id])
-  notifications Notification[]
 
   @@index([doctorId, priority, status])
   @@map("demands")
@@ -442,13 +441,18 @@ model Notification {
   type            String
   title           String
   body            String
+  // relatedDemandId é usado como referência polimórfica:
+  //   - new_demand / demand_response / appointment_confirmed → demand.id
+  //   - recipe_response / new_recipe_request                  → recipeRequest.id
+  //   - new_document                                         → document.id
+  //   - new_chat_message                                     → patientId
+  // Não há FK para demands(id) — ver migration 0005.
   relatedDemandId String?   @map("related_demand_id") @db.Uuid
   channelsSent    Json      @default("[]") @map("channels_sent")
   readAt          DateTime? @map("read_at")
   createdAt       DateTime  @default(now()) @map("created_at")
 
-  user          User    @relation(fields: [userId], references: [id])
-  relatedDemand Demand? @relation(fields: [relatedDemandId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId, createdAt])
   @@map("notifications")
