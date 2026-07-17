@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch, apiPost } from '../lib/api';
-import type { PatientRecipesResponse, RecipesResponse } from '../types';
+import { uploadFileViaSignedUrl } from '../lib/upload';
+import type { PatientRecipesResponse, RecipeRequest, RecipesResponse } from '../types';
 
 interface RecipesPanelProps {
   /** Se fornecido: foca nas receitas deste paciente.
@@ -29,6 +30,120 @@ function slaInfo(deadline: string) {
   if (diff <= 0) return 'Prazo vencido';
   const h = Math.floor(diff / 3600000);
   return h < 24 ? `${h}h restantes` : `${Math.floor(h / 24)}d restantes`;
+}
+
+/** Modal de detalhe da receita para o médico: ver dados + enviar receita em PDF. */
+function RecipeDetailModal({
+  recipe,
+  onClose,
+}: {
+  recipe: RecipeRequest;
+  onClose: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [notes, setNotes] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+
+  const send = useMutation({
+    mutationFn: async () => {
+      if (!file) throw new Error('Selecione o arquivo da receita (PDF ou imagem).');
+      // 1. Upload do PDF/receita para o Storage
+      const { storagePath } = await uploadFileViaSignedUrl(
+        `/patients/${recipe.patientId}/documents/sign-upload`,
+        { documentType: 'recipe' },
+        file,
+      );
+      // 2. Registra documento vinculado ao paciente
+      await apiPost(`/patients/${recipe.patientId}/documents`, {
+        storagePath,
+        documentType: 'recipe',
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || 'application/octet-stream',
+      });
+      // 3. Marca receita como respondida
+      await apiPatch(`/recipes/${recipe.id}/respond`, {});
+    },
+    onSuccess: () => onClose(),
+    onError: (e) => setErr(e instanceof Error ? e.message : 'Erro ao enviar receita.'),
+  });
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3 style={{ margin: 0 }}>Receita — {recipe.patient?.user.fullName ?? 'paciente'}</h3>
+          <button className="btn-ghost small" onClick={onClose} aria-label="Fechar">
+            ×
+          </button>
+        </div>
+
+        <div className="modal-body">
+          <div className="recipe-detail-row">
+            <strong>Medicamentos:</strong>
+            <span>{recipe.medicationNames.length ? recipe.medicationNames.join(', ') : '(sem medicamentos)'}</span>
+          </div>
+          {recipe.reason && (
+            <div className="recipe-detail-row">
+              <strong>Motivo:</strong>
+              <span>{recipe.reason}</span>
+            </div>
+          )}
+          {recipe.quantityDays && (
+            <div className="recipe-detail-row">
+              <strong>Quantidade:</strong>
+              <span>{recipe.quantityDays} dias</span>
+            </div>
+          )}
+          <div className="recipe-detail-row">
+            <strong>Prazo:</strong>
+            <span>{slaInfo(recipe.slaDeadline)}</span>
+          </div>
+          <div className="recipe-detail-row">
+            <strong>Status:</strong>
+            <span className={`tag ${STATUS_TAG[recipe.status]}`}>{STATUS_LABEL[recipe.status]}</span>
+          </div>
+
+          <hr style={{ margin: '16px 0', borderColor: 'rgba(0,0,0,0.08)' }} />
+
+          <label>
+            Arquivo da receita (PDF, JPG ou PNG)
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/pdf,image/jpeg,image/png"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          <label>
+            Observação para o paciente (opcional)
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Ex: Tomar após almoço por 30 dias."
+            />
+          </label>
+
+          {err && <div className="auth-error">{err}</div>}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button
+              className="btn-primary"
+              disabled={send.isPending}
+              onClick={() => send.mutate()}
+            >
+              {send.isPending ? 'Enviando…' : 'Enviar receita e marcar como respondida'}
+            </button>
+            <button className="btn-ghost" onClick={onClose} disabled={send.isPending}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function RecipesPanel({ patientId, patientName, role }: RecipesPanelProps) {
@@ -83,6 +198,8 @@ export function RecipesPanel({ patientId, patientName, role }: RecipesPanelProps
       queryClient.invalidateQueries({ queryKey: ['recipes', 'patient'] });
     },
   });
+
+  const [openRecipe, setOpenRecipe] = useState<RecipeRequest | null>(null);
 
   const recipes = patientId
     ? patientRecipesQuery.data?.recipes ?? []
@@ -167,20 +284,42 @@ export function RecipesPanel({ patientId, patientName, role }: RecipesPanelProps
             {r.status === 'pending' && (
               <div className="muted small">{slaInfo(r.slaDeadline)}</div>
             )}
-            {/* Médico pode marcar como respondida (com ou sem paciente selecionado) */}
+            {/* Médico: ao clicar, abre modal com upload de receita em anexo */}
             {role === 'doctor' && r.status === 'pending' && (
-              <button
-                className="btn-primary"
-                style={{ fontSize: 12, padding: '6px 12px', marginTop: 4 }}
-                disabled={respondRecipe.isPending}
-                onClick={() => respondRecipe.mutate(r.id)}
-              >
-                Marcar como respondida
-              </button>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button
+                  className="btn-primary"
+                  style={{ fontSize: 12, padding: '6px 12px' }}
+                  onClick={() => setOpenRecipe(r)}
+                >
+                  Abrir e enviar receita
+                </button>
+                <button
+                  className="btn-ghost"
+                  style={{ fontSize: 12, padding: '6px 12px' }}
+                  disabled={respondRecipe.isPending}
+                  onClick={() => {
+                    if (confirm('Marcar como respondida sem anexar arquivo?')) {
+                      respondRecipe.mutate(r.id);
+                    }
+                  }}
+                >
+                  Marcar sem anexo
+                </button>
+              </div>
             )}
           </li>
         ))}
       </ul>
+
+      {openRecipe && (
+        <RecipeDetailModal recipe={openRecipe} onClose={() => {
+          setOpenRecipe(null);
+          queryClient.invalidateQueries({ queryKey: ['recipes', 'doctor'] });
+          queryClient.invalidateQueries({ queryKey: ['recipes', 'patient'] });
+          queryClient.invalidateQueries({ queryKey: ['documents'] });
+        }} />
+      )}
     </section>
   );
 }

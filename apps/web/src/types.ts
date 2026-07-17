@@ -107,6 +107,7 @@ export interface AppNotification {
   type: string;
   title: string;
   body: string;
+  relatedDemandId: string | null;
   readAt: string | null;
   createdAt: string;
 }

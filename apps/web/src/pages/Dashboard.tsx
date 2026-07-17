@@ -37,6 +37,65 @@ export function Dashboard() {
   const [lastCredentials, setLastCredentials] = useState<{ login: string; password: string; name: string } | null>(null);
   const [selected, setSelected] = useState<PatientListItem | null>(null);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(false);
+
+  // Função utilitária de deep-link: ao clicar em uma notificação, rola até o
+  // painel correspondente e/ou seleciona o paciente certo.
+  function handleNotifClick(n: { id: string; type: string; relatedDemandId: string | null; readAt: string | null }) {
+    if (!n.readAt) {
+      apiPost(`/notifications/${n.id}/read`, {}).then(() => notifsQuery.refetch()).catch(() => {});
+    }
+    setShowNotifs(false);
+
+    // Tipos possíveis (NOTIFICATION_TYPES): new_demand, demand_response,
+    // new_recipe_request, recipe_response, new_document, new_chat_message,
+    // appointment_confirmed, etc.
+    const type = n.type;
+    if (type === 'new_recipe_request' || type === 'recipe_response') {
+      // Rolagem suave até o card de receitas
+      scrollToPanel('receitas-pendentes');
+    } else if (type === 'new_demand' || type === 'demand_response' || type === 'appointment_confirmed') {
+      scrollToPanel('demandas');
+    } else if (type === 'new_document') {
+      // Tenta selecionar o paciente da demanda (se houver) e rolar até Documentos
+      if (n.relatedDemandId) {
+        selectPatientFromDemand(n.relatedDemandId).then(() => scrollToPanel('documentos'));
+      } else {
+        scrollToPanel('documentos');
+      }
+    } else if (type === 'new_chat_message') {
+      // relatedDemandId está sendo usado como patientId pelo chat (workaround conhecido).
+      const pid = n.relatedDemandId;
+      if (pid) {
+        const p = patientsQuery.data?.patients.find((x) => x.id === pid);
+        if (p) setSelected(p);
+      }
+      scrollToPanel('conversa');
+    } else {
+      // Padrão: abrir a lista de demandas
+      scrollToPanel('demandas');
+    }
+  }
+
+  async function selectPatientFromDemand(demandId: string): Promise<void> {
+    try {
+      const res = await apiGet<{ demand: { patientId: string } }>(`/demands/${demandId}`);
+      const pid = res.demand?.patientId;
+      if (pid) {
+        const p = patientsQuery.data?.patients.find((x) => x.id === pid);
+        if (p) setSelected(p);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function scrollToPanel(id: string) {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  }
 
   const notifsQuery = useQuery({
     queryKey: ['notifications'],
@@ -117,10 +176,27 @@ export function Dashboard() {
                 <p className="muted" style={{ padding: '12px 16px', margin: 0 }}>Sem notificações.</p>
               )}
               {notifsQuery.data?.notifications.map((n) => (
-                <div key={n.id} className={n.readAt ? 'notif-item notif-item--read' : 'notif-item'}>
+                <button
+                  type="button"
+                  key={n.id}
+                  className={
+                    n.readAt
+                      ? 'notif-item notif-item--read notif-item--clickable'
+                      : 'notif-item notif-item--clickable'
+                  }
+                  onClick={() => handleNotifClick(n)}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    background: 'transparent',
+                    border: 'none',
+                    borderTop: '1px solid rgba(15,59,65,0.06)',
+                    padding: '10px 16px',
+                  }}
+                >
                   <strong>{n.title}</strong>
                   <div className="muted small">{n.body}</div>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -147,103 +223,124 @@ export function Dashboard() {
         {doctor && (
           <div className="grid">
             <div className="col">
-              <section className="card">
-                <h2>Cadastrar paciente</h2>
-
-                {lastCredentials && (
-                  <div className="credentials-box">
-                    <strong>{lastCredentials.name} cadastrado</strong>
-                    <p>Informe ao paciente as credenciais de acesso ao app:</p>
-                    <div className="credentials-row">
-                      <span className="cred-label">CPF (login):</span>
-                      <code>{lastCredentials.login}</code>
-                    </div>
-                    <div className="credentials-row">
-                      <span className="cred-label">Senha (nasc.):</span>
-                      <code>{lastCredentials.password}</code>
-                    </div>
-                    <p className="muted small">Formato da senha: DDMMAAAA · Ex: 22111989 = 22/11/1989</p>
-                    <button className="btn-ghost small" onClick={() => setLastCredentials(null)}>
-                      Fechar
-                    </button>
-                  </div>
-                )}
-
-                <form
-                  className="patient-form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    setLastCredentials(null);
-                    addPatient.mutate();
+              <section className="card collapsible-card">
+                <div
+                  className="collapsible-header"
+                  onClick={() => setRegisterOpen((v) => !v)}
+                  role="button"
+                  aria-expanded={registerOpen}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setRegisterOpen((v) => !v);
+                    }
                   }}
                 >
-                  <label>
-                    Nome completo
-                    <input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-                  </label>
-                  <div className="row">
-                    <label>
-                      CPF
-                      <input
-                        value={cpf}
-                        onChange={(e) => setCpf(e.target.value)}
-                        placeholder="000.000.000-00"
-                        required
-                      />
-                    </label>
-                    <label>
-                      Telefone
-                      <input
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="55 83 99999-0000"
-                        required
-                      />
-                    </label>
+                  <h2>Cadastrar paciente</h2>
+                  <span className="collapsible-toggle">
+                    {registerOpen ? 'Ocultar ▴' : 'Expandir ▾'}
+                  </span>
+                </div>
+
+                {registerOpen && (
+                  <div className="collapsible-content">
+                    {lastCredentials && (
+                      <div className="credentials-box">
+                        <strong>{lastCredentials.name} cadastrado</strong>
+                        <p>Informe ao paciente as credenciais de acesso ao app:</p>
+                        <div className="credentials-row">
+                          <span className="cred-label">CPF (login):</span>
+                          <code>{lastCredentials.login}</code>
+                        </div>
+                        <div className="credentials-row">
+                          <span className="cred-label">Senha (nasc.):</span>
+                          <code>{lastCredentials.password}</code>
+                        </div>
+                        <p className="muted small">Formato da senha: DDMMAAAA · Ex: 22111989 = 22/11/1989</p>
+                        <button className="btn-ghost small" onClick={() => setLastCredentials(null)}>
+                          Fechar
+                        </button>
+                      </div>
+                    )}
+
+                    <form
+                      className="patient-form"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        setLastCredentials(null);
+                        addPatient.mutate();
+                      }}
+                    >
+                      <label>
+                        Nome completo
+                        <input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+                      </label>
+                      <div className="row">
+                        <label>
+                          CPF
+                          <input
+                            value={cpf}
+                            onChange={(e) => setCpf(e.target.value)}
+                            placeholder="000.000.000-00"
+                            required
+                          />
+                        </label>
+                        <label>
+                          Telefone
+                          <input
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            placeholder="55 83 99999-0000"
+                            required
+                          />
+                        </label>
+                      </div>
+                      <div className="row">
+                        <label>
+                          Data de nascimento
+                          <input
+                            type="date"
+                            value={dateOfBirth}
+                            onChange={(e) => setDateOfBirth(e.target.value)}
+                            required
+                            title="Vira a senha inicial do paciente (DDMMAAAA)"
+                          />
+                        </label>
+                        <label>
+                          E-mail (opcional)
+                          <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="paciente@exemplo.com"
+                          />
+                        </label>
+                      </div>
+                      <label>
+                        Histórico médico (opcional)
+                        <textarea
+                          value={medicalHistory}
+                          onChange={(e) => setMedicalHistory(e.target.value)}
+                          placeholder="Diagnósticos anteriores, cirurgias…"
+                          rows={2}
+                        />
+                      </label>
+                      <label>
+                        Alergias (opcional)
+                        <input
+                          value={allergies}
+                          onChange={(e) => setAllergies(e.target.value)}
+                          placeholder="AAS, penicilina…"
+                        />
+                      </label>
+                      {formError && <div className="auth-error">{formError}</div>}
+                      <button className="btn-primary" type="submit" disabled={addPatient.isPending}>
+                        {addPatient.isPending ? 'Salvando…' : 'Cadastrar paciente'}
+                      </button>
+                    </form>
                   </div>
-                  <div className="row">
-                    <label>
-                      Data de nascimento
-                      <input
-                        type="date"
-                        value={dateOfBirth}
-                        onChange={(e) => setDateOfBirth(e.target.value)}
-                        required
-                        title="Vira a senha inicial do paciente (DDMMAAAA)"
-                      />
-                    </label>
-                    <label>
-                      E-mail (opcional)
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="paciente@exemplo.com"
-                      />
-                    </label>
-                  </div>
-                  <label>
-                    Histórico médico (opcional)
-                    <textarea
-                      value={medicalHistory}
-                      onChange={(e) => setMedicalHistory(e.target.value)}
-                      placeholder="Diagnósticos anteriores, cirurgias…"
-                      rows={2}
-                    />
-                  </label>
-                  <label>
-                    Alergias (opcional)
-                    <input
-                      value={allergies}
-                      onChange={(e) => setAllergies(e.target.value)}
-                      placeholder="AAS, penicilina…"
-                    />
-                  </label>
-                  {formError && <div className="auth-error">{formError}</div>}
-                  <button className="btn-primary" type="submit" disabled={addPatient.isPending}>
-                    {addPatient.isPending ? 'Salvando…' : 'Cadastrar paciente'}
-                  </button>
-                </form>
+                )}
               </section>
 
               <section className="card">
@@ -286,24 +383,34 @@ export function Dashboard() {
             </div>
 
             <div className="col">
-              <DemandsPanel />
+              <div id="demandas"><DemandsPanel /></div>
               {selected ? (
                 <>
-                  <ChatPanel patientId={selected.id} patientName={selected.user.fullName} />
-                  <RecipesPanel patientId={selected.id} patientName={selected.user.fullName} role="doctor" />
-                  <ExamsPanel patientId={selected.id} patientName={selected.user.fullName} />
-                  <DocumentsPanel patientId={selected.id} patientName={selected.user.fullName} />
+                  <div id="conversa">
+                    <ChatPanel patientId={selected.id} patientName={selected.user.fullName} />
+                  </div>
+                  <div id="receitas-pendentes">
+                    <RecipesPanel patientId={selected.id} patientName={selected.user.fullName} role="doctor" />
+                  </div>
+                  <div id="solicitacoes-exame">
+                    <ExamsPanel patientId={selected.id} patientName={selected.user.fullName} />
+                  </div>
+                  <div id="documentos">
+                    <DocumentsPanel patientId={selected.id} patientName={selected.user.fullName} />
+                  </div>
                   <HeadachePanel patientId={selected.id} patientName={selected.user.fullName} />
                   <SeizurePanel patientId={selected.id} patientName={selected.user.fullName} />
                   <HealthEventPanel patientId={selected.id} patientName={selected.user.fullName} />
                 </>
               ) : (
                 <>
-                  <section className="card">
+                  <section className="card" id="conversa">
                     <h2>Conversa</h2>
                     <p className="muted">Selecione um paciente à esquerda para abrir o chat.</p>
                   </section>
-                  <RecipesPanel patientId={null} role="doctor" />
+                  <div id="receitas-pendentes">
+                    <RecipesPanel patientId={null} role="doctor" />
+                  </div>
                 </>
               )}
             </div>

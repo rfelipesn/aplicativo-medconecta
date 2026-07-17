@@ -912,6 +912,105 @@ textarea:focus-visible {
 }
 .error { color: #ae3030; }
 
+/* Modal — Receita detalhe e outros diálogos */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 59, 65, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+.modal-card {
+  background: var(--color-surface);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 48px rgba(15, 59, 65, 0.18);
+  border: 1px solid var(--color-border);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+.modal-body {
+  padding: 16px 20px;
+}
+.modal-body label {
+  display: block;
+  font-size: 13px;
+  color: var(--color-muted);
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+.modal-body label input,
+.modal-body label textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  font-weight: 400;
+  color: var(--color-text);
+}
+.recipe-detail-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.recipe-detail-row strong {
+  min-width: 110px;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+.recipe-detail-row span {
+  color: var(--color-text);
+}
+
+/* Card colapsável (cadastrar paciente) */
+.collapsible-card .collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  gap: 8px;
+}
+.collapsible-card .collapsible-header h2 { margin: 0; }
+.collapsible-card .collapsible-toggle {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 4px 10px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.collapsible-card .collapsible-toggle:hover {
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+}
+.collapsible-card .collapsible-content {
+  margin-top: 12px;
+}
+
+/* Notificação clicável */
+.notif-item--clickable {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.notif-item--clickable:hover {
+  background: var(--color-surface-soft);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
