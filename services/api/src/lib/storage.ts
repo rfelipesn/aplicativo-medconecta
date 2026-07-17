@@ -16,8 +16,9 @@ export async function createSignedUploadUrl(
   bucket: string,
   path: string,
 ): Promise<{ signedUrl: string; token: string }> {
-  // Supabase Storage exige `expiresIn` no body do sign-upload.
-  const res = await fetch(`${base()}/object/sign/upload/${bucket}/${path}`, {
+  // Endpoint correto: POST /storage/v1/object/upload/sign/{bucket}/{path}
+  // (a ordem é /upload/sign/, não /sign/upload/ — esse último retorna 404).
+  const res = await fetch(`${base()}/object/upload/sign/${bucket}/${path}`, {
     method: 'POST',
     headers: adminHeaders(),
     body: JSON.stringify({ expiresIn: 3600 }),
