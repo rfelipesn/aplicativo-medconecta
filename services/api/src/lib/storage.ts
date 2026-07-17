@@ -11,7 +11,10 @@ function adminHeaders() {
   return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
 }
 
-/** Gera URL assinada para UPLOAD (front faz PUT direto no Storage). */
+/** Gera URL assinada para UPLOAD (front faz PUT direto no Storage).
+ *  Retorna a URL ABSOLUTA (https://<project>.supabase.co/storage/v1/...) para
+ *  que o browser possa fazer PUT direto no Storage sem passar pelo nosso Nginx.
+ */
 export async function createSignedUploadUrl(
   bucket: string,
   path: string,
@@ -30,7 +33,12 @@ export async function createSignedUploadUrl(
       `Storage upload failed — bucket:${bucket} path:${path} — ${detail}`,
     );
   }
-  return res.json() as Promise<{ signedUrl: string; token: string }>;
+  const data = (await res.json()) as { url: string; token: string };
+  // O Supabase retorna { url: "/object/upload/sign/...?token=...", token }.
+  // url é RELATIVO ao /storage/v1/. Precisamos juntar com a SUPABASE_URL
+  // para que o browser faça PUT direto no Supabase, não no nosso Nginx.
+  const absoluteUrl = `${env.SUPABASE_URL}/storage/v1${data.url}`;
+  return { signedUrl: absoluteUrl, token: data.token };
 }
 
 /** Gera URL assinada para DOWNLOAD (expiração em segundos). */

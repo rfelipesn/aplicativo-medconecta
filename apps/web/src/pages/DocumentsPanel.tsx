@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost } from '../lib/api';
+import { uploadFileViaSignedUrl } from '../lib/upload';
 import type { DocumentsResponse } from '../types';
 
 const DOCUMENT_LABELS: Record<string, string> = {
@@ -41,27 +42,16 @@ export function DocumentsPanel({ patientId, patientName }: DocumentsPanelProps) 
     mutationFn: async () => {
       if (!file) throw new Error('Selecione um arquivo.');
 
-      // 1. Pede signed upload URL
-      const signed = await apiPost<{ signedUrl: string; storagePath: string }>(
+      // Upload para o Supabase Storage via signed URL (URL absoluta).
+      const { storagePath } = await uploadFileViaSignedUrl(
         `/patients/${patientId}/documents/sign-upload`,
-        {
-          filename: file.name,
-          mimeType: file.type,
-          documentType,
-        },
+        { documentType },
+        file,
       );
 
-      // 2. PUT direto no Storage com a signed URL
-      const putRes = await fetch(signed.signedUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      });
-      if (!putRes.ok) throw new Error(`Upload falhou no Storage (${putRes.status}).`);
-
-      // 3. Registra no banco
+      // Registra no banco
       await apiPost(`/patients/${patientId}/documents`, {
-        storagePath: signed.storagePath,
+        storagePath,
         documentType,
         fileName: file.name,
         fileSize: file.size,

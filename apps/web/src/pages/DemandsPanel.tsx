@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch, apiPost } from '../lib/api';
+import { uploadFileViaSignedUrl } from '../lib/upload';
 import type { DemandsResponse, Demand } from '../types';
 
 const DEMAND_TYPE_LABELS: Record<string, string> = {
@@ -83,22 +84,13 @@ export function DemandsPanel({ patientId }: DemandsPanelProps) {
         if (pid) {
           try {
             setAttachError(null);
-            const signed = await apiPost<{ signedUrl: string; storagePath: string }>(
+            const { storagePath } = await uploadFileViaSignedUrl(
               `/patients/${pid}/documents/sign-upload`,
-              {
-                filename: attachFile.name,
-                mimeType: attachFile.type || 'application/octet-stream',
-                documentType: 'recipe',
-              },
+              { documentType: 'recipe' },
+              attachFile,
             );
-            const putRes = await fetch(signed.signedUrl, {
-              method: 'PUT',
-              headers: { 'Content-Type': attachFile.type || 'application/octet-stream' },
-              body: attachFile,
-            });
-            if (!putRes.ok) throw new Error(`Upload falhou (${putRes.status})`);
             await apiPost(`/patients/${pid}/documents`, {
-              storagePath: signed.storagePath,
+              storagePath,
               documentType: 'recipe',
               fileName: attachFile.name,
               fileSize: attachFile.size,
